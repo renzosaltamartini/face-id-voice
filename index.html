@@ -68,6 +68,7 @@
 .profile-details dt{font-size:12px;color:#54647c}
 .profile-details dd{margin:3px 0 0}
 @media(max-width:540px){.panel-cards{grid-template-columns:1fr}.dashboard{padding:0 16px 35px}}
+#faceRecognitionVideo{width:100%;max-width:270px;aspect-ratio:1;object-fit:cover;transform:scaleX(-1);border-radius:16px;background:#17243a}
 </style><script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script></head><body>
 <section class="screen" id="home"><div class="shell"><nav class="nav"><div class="logo"><span class="logo-mark">✦</span>nova.</div><span class="nav-note">Tu espacio personal</span></nav><main class="home-main"><div class="home-copy"><div class="eyebrow">BIENVENIDO A NOVA</div><h1>Todo empieza<br>con <span>vos.</span></h1><p>Un espacio simple, pensado para vos. Ingresá con tu rostro y accedé a tu panel personal en segundos.</p><button class="primary" id="loginButton">Ingresar a mi cuenta &nbsp; →</button></div><div class="home-art" aria-hidden="true"><div class="art-card"><div class="art-face"></div><div class="art-line"></div><div class="art-line short"></div></div></div></main><footer class="foot">Nova · Experiencia de acceso personal</footer></div></section>
@@ -75,7 +76,7 @@
   <p id="devicePrompt">Elegí cómo continuar.</p>
   <button class="primary" id="verifyHere" type="button">Iniciar sesión</button>
   <button class="secondary" id="verifyThisDevice" type="button" hidden>Ingresar con este dispositivo</button>
-  <button class="secondary" id="migrateAccount" type="button" hidden>Vincular mi cuenta anterior</button>
+  <button class="secondary" id="recognizeFace" type="button" hidden>Reconocer mi rostro</button>
   <button class="secondary" id="verifyPhone" type="button">Registrarme</button>
 </div>
 <div class="phase-top" id="phaseCard" aria-live="polite"><span class="phase-emoji" id="phaseEmoji">👀</span><span class="phase-label" id="phaseLabel">Mirá al frente</span><span class="phase-count" id="phaseCount">PASO 1 DE 5</span></div><div class="camera" id="camera"><video id="video" autoplay playsinline muted></video><canvas id="overlay"></canvas><svg class="face-guide" viewBox="0 0 320 332" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -94,6 +95,11 @@
   <h2 id="phoneApprovalTitle"></h2>
   <p id="phoneApprovalText"></p>
   <button class="primary" type="button" id="confirmPhone">Continuar</button>
+</div>
+<div class="qr-fallback" id="faceRecognitionCard" hidden>
+  <h2 id="faceRecognitionTitle"></h2>
+  <p id="faceRecognitionInstructions"></p>
+  <video id="faceRecognitionVideo" playsinline muted></video>
 </div>
 <div class="qr-fallback" id="scannerCard" hidden>
   <h2>Escaneá el código de la computadora</h2>
@@ -123,6 +129,7 @@
     <article class="panel-card"><h2>Correo electrónico</h2><p><span class="email-state" id="emailState">Email no verificado</span></p><button class="primary" type="button" id="sendVerification">Verificar correo</button></article>
     <article class="panel-card"><h2>Acceso a tu cuenta</h2><p>Revisá las sesiones abiertas o autorizá el ingreso en una computadora.</p><button class="secondary" type="button" data-open-devices>Ver dispositivos</button><button class="secondary" id="enableAccess" type="button" hidden>Habilitar acceso</button>
     <button class="secondary" id="addPasskey" type="button" hidden>Guardar clave en este dispositivo</button></article>
+    <article class="panel-card"><h2>Reconocimiento facial</h2><p>Guardá una referencia de tu rostro en este navegador para encontrar tu cuenta con la cámara. Al ingresar, confirmás con tu clave de acceso.</p><button class="secondary" id="saveFace" type="button">Guardar mi rostro</button><button class="secondary" id="deleteFace" type="button" hidden>Borrar el rostro guardado</button></article>
   </div>
   <article class="panel-card" id="panel-devices" hidden>
     <h2>Dispositivos conectados</h2><p>Sesiones abiertas de tu cuenta. Podés cerrar el acceso en otro dispositivo.</p>
@@ -199,10 +206,146 @@ const ua=navigator.userAgent;
 const isPhone=/iPhone|iPod|Windows Phone/i.test(ua)||(/Android/i.test(ua)&&/Mobile/i.test(ua));
 const sessionKey='nova-session-v1';
 let desktopRequest=null,phoneRequest=null,scannerStream=null,pollTimer=null;
+let faceOperation=null,faceStream=null,humanModel=null,accountCredential=null;
+const faceStorageKey='nova-face-references-v1';
+function savedFaces(){
+  try{
+    const faces=JSON.parse(localStorage.getItem(faceStorageKey)||'[]');
+    if(!Array.isArray(faces))return [];
+    return faces.filter(face=>typeof face?.id==='string'&&Array.isArray(face.samples)&&face.samples.length===3&&
+      face.samples.every(sample=>Array.isArray(sample)&&sample.length>0&&sample.length<=2048&&sample.every(Number.isFinite)));
+  }catch{return []}
+}
+function updateFaceButtons(){
+  const faces=savedFaces();
+  $('recognizeFace').hidden=!faces.length;
+  $('deleteFace').hidden=!faces.some(face=>face.id===accountCredential);
+}
+function stopFaceRecognition(){
+  faceOperation=null;
+  faceStream?.getTracks().forEach(track=>track.stop());
+  faceStream=null;
+  $('faceRecognitionVideo').srcObject=null;
+}
+function loadFaceModel(){
+  if(!humanModel)humanModel=(async()=>{
+    if(!window.Human){
+      await new Promise((resolve,reject)=>{
+        const script=document.createElement('script');
+        script.src='https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.6/dist/human.js';
+        script.integrity='sha384-vASLsXJSh9FIgw41jM2fwBSF2MoEPlegwV4SO9G3NeyRMcWf7XjSdYvU6MlwOfQl';
+        script.crossOrigin='anonymous';
+        script.onload=resolve;
+        script.onerror=()=>{script.remove();reject(Error('No se pudo cargar el reconocimiento facial.'))};
+        document.head.append(script);
+      });
+    }
+    const model=new window.Human.Human({
+      modelBasePath:'https://cdn.jsdelivr.net/npm/@vladmandic/human@3.3.6/models/',
+      cacheSensitivity:0,skipAllowed:false,
+      body:{enabled:false},hand:{enabled:false},object:{enabled:false},gesture:{enabled:false},
+      face:{enabled:true,detector:{rotation:true,maxDetected:2,skipFrames:0,skipTime:0},
+        mesh:{enabled:true},iris:{enabled:false},emotion:{enabled:false},
+        description:{enabled:true,skipFrames:0,skipTime:0}}
+    });
+    await model.load();
+    return model;
+  })().catch(error=>{humanModel=null;throw error});
+  return humanModel;
+}
+async function captureFace(operation){
+  const media=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'},width:{ideal:480}},audio:false});
+  if(faceOperation!==operation){media.getTracks().forEach(track=>track.stop());return}
+  faceStream=media;
+  const preview=$('faceRecognitionVideo');
+  preview.srcObject=media;
+  await preview.play();
+  const model=await loadFaceModel();
+  const samples=[];
+  const deadline=Date.now()+12000;
+  while(faceOperation===operation&&Date.now()<deadline){
+    const result=await model.detect(preview);
+    if(faceOperation!==operation)return;
+    if(result.face.length===1&&result.face[0].embedding?.length){
+      const sample=Array.from(result.face[0].embedding);
+      if(sample.every(Number.isFinite))samples.push(sample);
+      if(samples.length===3)return {model,samples};
+    }else{
+      samples.length=0;
+    }
+    await wait(350);
+  }
+  if(faceOperation===operation)throw Error('Ubicá un solo rostro frente a la cámara, con buena luz, y volvé a intentar.');
+}
+function bestFaceMatch(model,samples,faces){
+  const candidates=faces.map(face=>({
+    id:face.id,
+    score:Math.min(...samples.map(sample=>Math.max(...face.samples.map(reference=>
+      sample.length===reference.length?model.match.similarity(sample,reference):0)))),
+  })).sort((a,b)=>b.score-a.score);
+  const [best,next]=candidates;
+  return best&&best.score>=.65&&(!next||best.score-next.score>=.08)?best.id:null;
+}
+async function runFaceRecognition(enroll,registration=false){
+  if(faceOperation)return;
+  const operation={enroll};
+  faceOperation=operation;
+  showScreen('verify');
+  showVerificationMode('face');
+  $('faceRecognitionTitle').textContent=enroll?'Guardá tu rostro':'Reconocé tu rostro';
+  $('faceRecognitionInstructions').textContent='Mirá a la cámara. La comparación se hace en este navegador.';
+  try{
+    const account=enroll?await api('/face/credential',{token:sessionToken}):null;
+    if(faceOperation!==operation)return;
+    const result=await captureFace(operation);
+    if(!result||faceOperation!==operation)return;
+    if(enroll){
+      const faces=savedFaces().filter(face=>face.id!==account.id);
+      localStorage.setItem(faceStorageKey,JSON.stringify([{id:account.id,samples:result.samples},...faces].slice(0,8)));
+      stopFaceRecognition();
+      accountCredential=account.id;
+      updateFaceButtons();
+      showScreen('dashboard');
+      panelMessage('Rostro guardado en este navegador.');
+      return;
+    }
+    const id=bestFaceMatch(result.model,result.samples,savedFaces());
+    stopFaceRecognition();
+    if(!id){
+      showChoices();
+      if(registration){await begin('registration');return}
+      notify('No encontramos una coincidencia. Podés ingresar con tu clave de acceso.');
+      return;
+    }
+    await begin('sign-in',true,id);
+  }catch(error){
+    if(faceOperation!==operation)return;
+    stopFaceRecognition();
+    if(enroll){showScreen('dashboard');panelMessage(error.message)}
+    else{showChoices();notify(error.message)}
+  }
+}
+$('saveFace').onclick=()=>runFaceRecognition(true);
+$('recognizeFace').onclick=()=>runFaceRecognition(false);
+$('deleteFace').onclick=()=>{
+  try{
+    localStorage.setItem(faceStorageKey,JSON.stringify(savedFaces().filter(face=>face.id!==accountCredential)));
+    updateFaceButtons();
+    panelMessage('Rostro borrado de este navegador.');
+  }catch(error){panelMessage(error.message)}
+};
+async function refreshFaceCredential(){
+  const token=sessionToken;
+  try{
+    const account=await api('/face/credential',{token});
+    if(token===sessionToken){accountCredential=account.id;updateFaceButtons()}
+  }catch{}
+}
+updateFaceButtons();
 let sessionToken=sessionStorage.getItem(sessionKey);
 const homePath='/face-id-voice/';
 const isNewSite=location.hostname!=='renzosaltamartini.github.io';
-$('migrateAccount').hidden=!isNewSite;
+
 $('addPasskey').hidden=!isNewSite;
 $('addPasskey').onclick=async()=>{
   const button=$('addPasskey');
@@ -321,6 +464,7 @@ function showVerificationMode(mode){
   $('qrFallback').hidden=mode!=='qr';
   $('phoneApproval').hidden=mode!=='approval';
   $('scannerCard').hidden=mode!=='scanner';
+  $('faceRecognitionCard').hidden=mode!=='face';
   for(const id of ['camera','phaseCard','verificationProgress'])$(id).hidden=mode!=='camera';
   $('start').hidden=true;
   notify();
@@ -340,6 +484,7 @@ function finishSignIn({session,account}){
   renderAccount(account);
   welcome(account.name);
   refreshAccount().catch(error=>panelMessage(error.message));
+  refreshFaceCredential();
 }
 function openProfile(){
   profileForm.reset();
@@ -382,30 +527,28 @@ async function waitForPhone(request){
     }
   }
 }
-async function begin(purpose,onThisDevice=isPhone,legacy=false){
-  $('verifyHere').disabled=$('verifyPhone').disabled=$('verifyThisDevice').disabled=$('migrateAccount').disabled=true;
+async function begin(purpose,onThisDevice=isPhone,credentialId=null){
+  $('verifyHere').disabled=$('verifyPhone').disabled=$('verifyThisDevice').disabled=$('recognizeFace').disabled=true;
   notify();
   try{
-    const request={...await api('/new',{purpose,legacy}),purpose};
+    const request={...await api('/new',{purpose}),purpose};
     if($('verify').hidden)return;
     desktopRequest=request;
     if(onThisDevice){
-      phoneRequest={id:request.id,token:request.phone,purpose};
+      phoneRequest={id:request.id,token:request.phone,purpose,credentialId};
       if(purpose==='registration')startFace();
       else showApproval('Iniciá sesión','Usá el reconocimiento facial, la huella o el PIN de este dispositivo para abrir tu cuenta de Nova.','Continuar en este dispositivo',approvePhone);
       return;
     }
     showVerificationMode('qr');
-    $('qrTitle').textContent=legacy?'Vinculá tu cuenta anterior':purpose==='registration'?'Registrate desde la computadora':'Autorizá el ingreso';
-    $('qrInstructions').textContent=legacy
-      ?'En el celular, entrá al panel de la dirección anterior de Nova. Tocá Habilitar acceso y escaneá este QR. Después, guardá una clave desde el nuevo panel.'
-      :purpose==='registration'
+    $('qrTitle').textContent=purpose==='registration'?'Registrate desde la computadora':'Autorizá el ingreso';
+    $('qrInstructions').textContent=purpose==='registration'
       ?'Escaneá el QR con tu celular, verificá tu rostro y volvé a esta pantalla para completar tus datos.'
       :'En el panel de Nova del celular, tocá Habilitar acceso y escaneá este QR.';
     $('qrImage').src=request.image;
     waitForPhone(request);
   }catch(error){notify(error.message)}
-  finally{$('verifyHere').disabled=$('verifyPhone').disabled=$('verifyThisDevice').disabled=$('migrateAccount').disabled=false}
+  finally{$('verifyHere').disabled=$('verifyPhone').disabled=$('verifyThisDevice').disabled=$('recognizeFace').disabled=false}
 }
 function startFace(){
   showVerificationMode('camera');
@@ -417,8 +560,8 @@ function startFace(){
   startCamera();
 }
 async function approvePhone(){
-  const {id,token,purpose}=phoneRequest;
-  const optionsJSON=await api('/options',{id,token});
+  const {id,token,purpose,credentialId}=phoneRequest;
+  const optionsJSON=await api('/options',{id,token,credentialId});
   if(!window.SimpleWebAuthnBrowser)throw Error('No se pudo cargar el servicio de claves de acceso.');
   const {startRegistration,startAuthentication}=window.SimpleWebAuthnBrowser;
   let response;
@@ -504,6 +647,7 @@ async function scanFromPanel(){
 }
 function cancelRequest(){
   clearTimeout(pollTimer);
+  stopFaceRecognition();
   desktopRequest=null;
   phoneRequest=null;
   stopScanner();
@@ -515,19 +659,21 @@ function cancelRequest(){
 $('loginButton').onclick=showChoices;
 $('verifyHere').onclick=()=>begin('sign-in');
 $('verifyThisDevice').onclick=()=>begin('sign-in',true);
-$('migrateAccount').onclick=()=>begin('sign-in',false,true);
+
 $('existingAccount').onclick=()=>{
   cancelRequest();
   showChoices();
   begin('sign-in');
 };
-$('verifyPhone').onclick=()=>begin('registration');
+$('verifyPhone').onclick=()=>isPhone&&savedFaces().length?runFaceRecognition(false,true):begin('registration');
 $('enableAccess').onclick=scanFromPanel;
 $('backToDevice').onclick=()=>{cancelRequest();showChoices()};
 $('cancelRegistration').onclick=()=>{cancelRequest();showScreen('home')};
 $('logoutButton').onclick=()=>{
   if(sessionToken)api('/logout',{token:sessionToken}).catch(()=>{});
   sessionToken=null;
+  accountCredential=null;
+  updateFaceButtons();
   sessionStorage.removeItem(sessionKey);
   cancelRequest();
   showScreen('home');
@@ -654,6 +800,7 @@ if(emailConfirmation){
   refreshAccount().then(account=>{
     $('enableAccess').hidden=!isPhone;
     welcome(account.name);
+    refreshFaceCredential();
   }).catch(()=>{sessionToken=null;sessionStorage.removeItem(sessionKey);showScreen('home')});
 }else if(location.pathname===panelPath){
   showScreen('home');
@@ -661,5 +808,5 @@ if(emailConfirmation){
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&stream&&!$('verify').hidden){video.play().catch(()=>{})}});document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&sessionToken&&!$('dashboard').hidden)refreshAccount().catch(()=>{});
 });
-window.addEventListener('pagehide',()=>{stopScanner();stream?.getTracks().forEach(t=>t.stop())});
+window.addEventListener('pagehide',()=>{stopFaceRecognition();stopScanner();stream?.getTracks().forEach(t=>t.stop())});
 </script></body></html>

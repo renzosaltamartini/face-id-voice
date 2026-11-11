@@ -6,7 +6,6 @@ import {
 } from '@simplewebauthn/server';
 import qrcode from 'qrcode-generator';
 
-const legacyOrigin = 'https://renzosaltamartini.github.io';
 const sitePath = '/face-id-voice/';
 const encoder = new TextEncoder();
 const token = () => toBase64(crypto.getRandomValues(new Uint8Array(32)));
@@ -44,7 +43,7 @@ function profileFrom(input) {
 export default {
   async fetch(request, { DB, BREVO_API_KEY, NOVA_EMAIL_FROM, NOVA_WEB_ORIGIN }) {
     const origin = request.headers.get('Origin');
-    if (!origin || (origin !== legacyOrigin && origin !== NOVA_WEB_ORIGIN)) {
+    if (!origin || origin !== NOVA_WEB_ORIGIN) {
       return Response.json({ error: 'Origen no autorizado.' }, { status: 403 });
     }
     const rpID = new URL(origin).hostname;
@@ -65,16 +64,14 @@ export default {
       const route = new URL(request.url).pathname;
       if (route === '/new') {
         if (!['sign-in', 'registration'].includes(body.purpose)) return fail(400, 'Opción incorrecta.');
-        const legacy = body.legacy === true && origin === NOVA_WEB_ORIGIN && body.purpose === 'sign-in';
-        const phoneOrigin = legacy ? legacyOrigin : origin;
         const id = token(), desktop = token(), phone = token(), expires = now + 5 * 60_000;
         await DB.batch([
           query('DELETE FROM qr_requests WHERE expires_at < ?', now),
           query('DELETE FROM sessions WHERE expires_at < ?', now),
           query(`INSERT INTO qr_requests (id, desktop_token_hash, phone_token_hash, purpose, expires_at, desktop_origin, phone_origin)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`, id, await hash(desktop), await hash(phone), body.purpose, expires, origin, phoneOrigin),
+            VALUES (?, ?, ?, ?, ?, ?, ?)`, id, await hash(desktop), await hash(phone), body.purpose, expires, origin, origin),
         ]);
-        const url = new URL(sitePath, phoneOrigin);
+        const url = new URL(sitePath, origin);
         url.hash = 'qr=' + id + '.' + phone;
         const qr = qrcode(0, 'M');
         qr.addData(url.href);
@@ -92,7 +89,7 @@ export default {
         ]);
         return result.meta.changes === 1 ? json({ verified: true }) : fail(410, 'El enlace venció o ya fue usado.');
       }
-      if (['/me', '/logout', '/devices', '/devices/revoke', '/email/send', '/passkey/options', '/passkey/register'].includes(route)) {
+      if (['/me', '/logout', '/devices', '/devices/revoke', '/email/send', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -103,6 +100,11 @@ export default {
           a.email_verified_at AS emailVerifiedAt, a.age, a.sex, a.nationality AS country, a.province, a.locality AS city
           FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`, key, now).first();
         if (!account) return fail(401, 'Volvé a iniciar sesión.');
+        if (route === '/face/credential') {
+          const credential = await query('SELECT id FROM passkeys WHERE account_id = ? AND rp_id = ? ORDER BY rowid DESC LIMIT 1',
+            account.id, rpID).first();
+          return credential ? json({ id: credential.id, name: account.name }) : fail(409, 'Guardá una clave de acceso antes de registrar tu rostro.');
+        }
         if (route === '/passkey/options') {
           if (origin !== NOVA_WEB_ORIGIN) return fail(403, 'Abrí la nueva dirección de Nova.');
           const options = await generateRegistrationOptions({
@@ -161,7 +163,7 @@ export default {
             expires_at = excluded.expires_at, sent_at = excluded.sent_at WHERE email_verifications.sent_at <= ?`,
           account.id, digest, now + 30 * 60_000, now, now - 60_000).run();
           if (!sent.meta.changes) return fail(429, 'Esperá un minuto antes de pedir otro correo.');
-          const url = new URL(sitePath + '#verify-email=' + secret, NOVA_WEB_ORIGIN || legacyOrigin).href;
+          const url = new URL(sitePath + '#verify-email=' + secret, origin).href;
           try {
             const delivered = await fetch('https://api.brevo.com/v3/smtp/email', {
               method: 'POST', headers: { 'api-key': BREVO_API_KEY, 'content-type': 'application/json' },
@@ -202,7 +204,11 @@ export default {
             attestationType: 'none', supportedAlgorithmIDs: [-7, -257],
             authenticatorSelection: { authenticatorAttachment: 'platform', residentKey: 'required', userVerification: 'required' },
           })
-          : await generateAuthenticationOptions({ rpID, userVerification: 'required' });
+          : await generateAuthenticationOptions({
+            rpID, userVerification: 'required',
+            allowCredentials: typeof body.credentialId === 'string' && /^[\w-]{16,1400}$/.test(body.credentialId)
+              ? [{ id: body.credentialId }] : [],
+          });
         await query('UPDATE qr_requests SET challenge = ? WHERE id = ? AND approved_at IS NULL', options.challenge, handoff.id).run();
         return json(options);
       }
