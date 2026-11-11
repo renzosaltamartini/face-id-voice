@@ -74,6 +74,7 @@
 <section class="screen" id="verify" hidden><div class="verify-shell"><button class="back" id="backButton">← &nbsp; Volver</button><div class="verify-header"><h1>Verificá tu identidad</h1></div><div class="device-choice" id="deviceChoice" hidden>
   <p id="devicePrompt">Elegí cómo continuar.</p>
   <button class="primary" id="verifyHere" type="button">Iniciar sesión</button>
+  <button class="secondary" id="verifyThisDevice" type="button" hidden>Ingresar con este dispositivo</button>
   <button class="secondary" id="verifyPhone" type="button">Registrarme</button>
 </div>
 <div class="phase-top" id="phaseCard" aria-live="polite"><span class="phase-emoji" id="phaseEmoji">👀</span><span class="phase-label" id="phaseLabel">Mirá al frente</span><span class="phase-count" id="phaseCount">PASO 1 DE 5</span></div><div class="camera" id="camera"><video id="video" autoplay playsinline muted></video><canvas id="overlay"></canvas><svg class="face-guide" viewBox="0 0 320 332" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -105,6 +106,7 @@
   </select></label></div></fieldset>
   <fieldset class="profile-step" hidden disabled><legend>Nacionalidad y localidad</legend><div class="form-grid"><label class="full">Nacionalidad<select id="personCountry" required><option value="">Seleccioná tu nacionalidad</option></select></label><label>Provincia / Estado<input id="personProvince" list="provinceList" required placeholder="Provincia o estado"><datalist id="provinceList"></datalist></label><label>Localidad<input id="personCity" list="cityList" required placeholder="Ciudad o localidad"><datalist id="cityList"></datalist></label></div><p class="form-help" id="locationHelp" aria-live="polite">Para Argentina podés elegir una sugerencia o escribir los datos manualmente.</p></fieldset>
   <div class="profile-actions"><button class="secondary" id="previousProfile" type="button" hidden>Atrás</button><button class="primary" id="nextProfile" type="submit">Continuar</button></div>
+  <button class="secondary" id="existingAccount" type="button">Ya tengo una cuenta</button>
 </form><div class="registration-progress"><div class="progress-meta"><span>Registro de cuenta</span><strong id="profileProgress">Paso 1 de 3</strong></div><div class="progress"><div class="bar"></div></div></div></div></section>
 <section class="screen" id="dashboard" hidden>
 <div class="dashboard">
@@ -297,6 +299,7 @@ async function api(route,body){
 }
 function showVerificationMode(mode){
   $('deviceChoice').hidden=mode!=='choice';
+  $('verifyThisDevice').hidden=isPhone;
   $('qrFallback').hidden=mode!=='qr';
   $('phoneApproval').hidden=mode!=='approval';
   $('scannerCard').hidden=mode!=='scanner';
@@ -361,17 +364,17 @@ async function waitForPhone(request){
     }
   }
 }
-async function begin(purpose){
-  $('verifyHere').disabled=$('verifyPhone').disabled=true;
+async function begin(purpose,onThisDevice=isPhone){
+  $('verifyHere').disabled=$('verifyPhone').disabled=$('verifyThisDevice').disabled=true;
   notify();
   try{
     const request={...await api('/new',{purpose}),purpose};
     if($('verify').hidden)return;
     desktopRequest=request;
-    if(isPhone){
+    if(onThisDevice){
       phoneRequest={id:request.id,token:request.phone,purpose};
       if(purpose==='registration')startFace();
-      else showApproval('Iniciá sesión','Confirmá con la clave de acceso de tu celular.','Usar clave de acceso',approvePhone);
+      else showApproval('Iniciá sesión','Usá el reconocimiento facial, la huella o el PIN de este dispositivo para abrir tu cuenta de Nova.','Continuar en este dispositivo',approvePhone);
       return;
     }
     showVerificationMode('qr');
@@ -382,7 +385,7 @@ async function begin(purpose){
     $('qrImage').src=request.image;
     waitForPhone(request);
   }catch(error){notify(error.message)}
-  finally{$('verifyHere').disabled=$('verifyPhone').disabled=false}
+  finally{$('verifyHere').disabled=$('verifyPhone').disabled=$('verifyThisDevice').disabled=false}
 }
 function startFace(){
   showVerificationMode('camera');
@@ -401,7 +404,7 @@ async function approvePhone(){
   let response;
   try{
     response=await (purpose==='registration'?startRegistration:startAuthentication)({optionsJSON});
-  }catch{throw Error('No se confirmó la clave de acceso. Volvé a intentarlo.')}
+  }catch{throw Error('No se pudo usar una clave de acceso. Si tu cuenta está en el celular, volvé e ingresá por QR.')}
   await api('/approve',{id,token,response});
   if(desktopRequest?.id===id){
     if(purpose==='registration')openProfile();
@@ -491,6 +494,12 @@ function cancelRequest(){
 }
 $('loginButton').onclick=showChoices;
 $('verifyHere').onclick=()=>begin('sign-in');
+$('verifyThisDevice').onclick=()=>begin('sign-in',true);
+$('existingAccount').onclick=()=>{
+  cancelRequest();
+  showChoices();
+  begin('sign-in');
+};
 $('verifyPhone').onclick=()=>begin('registration');
 $('enableAccess').onclick=scanFromPanel;
 $('backToDevice').onclick=()=>{cancelRequest();showChoices()};
