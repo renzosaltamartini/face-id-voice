@@ -43,31 +43,67 @@
 #scannerVideo{width:100%;max-width:280px;aspect-ratio:1;object-fit:cover;border-radius:15px;background:#17243a}
 #enableAccess{margin-top:16px}
 
-#dashboard{min-height:100svh;background:#f7f8fa}
-#dashboard .dash-head{padding-bottom:26px}
-.panel-heading{display:flex;align-items:center;gap:14px;margin-bottom:24px}
-.panel-heading .avatar{margin:0;flex:none}
-.panel-heading h1{font-size:clamp(26px,5vw,38px);margin:0;letter-spacing:-.8px}
-.panel-heading p{margin:5px 0 0;color:#596981;overflow-wrap:anywhere}
-.panel-tabs{display:flex;gap:6px;overflow:auto;margin:0 0 20px;border-bottom:1px solid #dce4ef}
-.panel-tabs button{padding:12px 10px;border:0;background:none;color:#40516d;border-bottom:2px solid transparent;white-space:nowrap}
-.panel-tabs button[aria-pressed="true"]{border-color:#2559f3;color:#1745d0;font-weight:700}
-.panel-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-.panel-card{background:#fff;border:1px solid #e0e7f1;border-radius:16px;padding:18px;min-width:0}
-.panel-card h2,.panel-card h3{font-size:17px;margin:0 0 8px}
-.panel-card p,.panel-card dd,.panel-card small{color:#54647c;line-height:1.5;overflow-wrap:anywhere}
-.panel-card p{margin:0 0 12px}
-.panel-card button{margin-top:6px}
-#enableAccess{margin-top:6px}
-.email-state{display:inline-block;padding:5px 9px;border-radius:8px;background:#fff2d9;color:#784a0a;font-weight:650}
-.email-state[data-verified="true"]{background:#ddf7eb;color:#196342}
+
+#dashboard{min-height:100svh;background:#f1f4fb;color:#172544}
+.nova-dashboard{max-width:1480px;min-height:100svh;margin:auto;display:grid;grid-template-columns:228px minmax(0,1fr)}
+.panel-sidebar{background:#121c36;color:#e6edff;display:flex;flex-direction:column;gap:32px;padding:30px 20px}
+.panel-sidebar .logo{padding:0 8px;color:white}
+.panel-sidebar .logo-mark{background:#4268ff;color:white}
+.panel-nav{display:grid;gap:6px}
+.panel-nav button{display:flex;align-items:center;gap:11px;border:0;border-radius:11px;padding:11px 12px;background:transparent;color:#b9c7e7;text-align:left;font-size:13px;font-weight:600}
+.panel-nav button:hover{background:#202e50;color:white}
+.panel-nav button[aria-pressed="true"]{background:#263d76;color:#fff}
+.panel-nav button span{width:19px;flex:none;text-align:center;font-size:16px;color:#aabaff}
+.panel-sidebar #logoutButton{margin-top:auto;align-self:stretch;border:1px solid #43516e;background:transparent;color:#e5edff;text-align:center}
+.panel-main{min-width:0;padding:clamp(18px,4vw,48px);max-width:1140px;width:100%;margin:0 auto}
+.panel-header{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:24px}
+.panel-header h1{font-size:clamp(25px,4vw,36px);margin:0;letter-spacing:-.045em}
+.panel-header .avatar{margin:0;width:45px;height:45px;border-radius:13px;background:#e2eaff;color:#214abf;flex:none}
+.panel-hero{position:relative;overflow:hidden;border-radius:22px;padding:clamp(22px,4.5vw,44px);margin-bottom:18px;background:linear-gradient(115deg,#1e3da6,#453bd4 75%,#5a4bd9);color:white}
+.panel-hero h2{font-size:clamp(26px,5vw,44px);line-height:1.12;letter-spacing:-.05em;margin:0 0 8px;overflow-wrap:anywhere}
+.panel-hero p{margin:0 0 20px;color:#e5eaff;overflow-wrap:anywhere}
+.panel-hero .secondary{background:white;color:#24388d;border:0}
+.panel-actions{display:flex;flex-wrap:wrap;gap:8px}
+.panel-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.panel-metric,.panel-card{min-width:0;background:white;border:1px solid #dce5f4;border-radius:16px;padding:18px;box-shadow:0 8px 20px #132b5d08}
+.panel-metric{display:grid;gap:4px}
+.panel-metric span{font-size:12px;color:#536688}
+.panel-metric strong{font-family:var(--font-heading);font-size:clamp(17px,2.8vw,27px);letter-spacing:-.03em}
+.panel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.panel-card h2,.panel-card h3{font-size:19px;margin:0 0 8px;letter-spacing:-.025em}
+.panel-card p,.panel-card dd,.panel-card small{color:#536688;line-height:1.55;overflow-wrap:anywhere}
+.panel-card p{margin:0 0 13px}
+.panel-card button{margin-top:5px}
+.panel-section-header{margin:0 0 16px}
+.panel-section-header h2{margin:0 0 4px;font-size:24px;letter-spacing:-.035em}
+.panel-section-header p{margin:0;color:#536688;font-size:13px}
+#panelMessage{background:#e6edff;border:1px solid #cdd9fd;border-radius:12px;padding:10px 14px;margin:0 0 14px}
 .device-list{list-style:none;margin:12px 0 0;padding:0}
 .device-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #e3e9f1;padding:12px 0}
 .device-list small{display:block}
-.profile-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0}
-.profile-details dt{font-size:12px;color:#54647c}
+.device-current{display:inline-block;margin-left:7px;padding:3px 7px;border-radius:8px;background:#dff7ee;color:#176545;font-size:10px}
+.profile-details,.panel-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0 0 12px}
+.profile-details dt,.panel-edit-grid label{font-size:12px;color:#4a5f81}
 .profile-details dd{margin:3px 0 0}
-@media(max-width:540px){.panel-cards{grid-template-columns:1fr}.dashboard{padding:0 16px 35px}}
+.panel-edit-grid label{display:grid;gap:5px}
+.panel-edit-grid input,.panel-edit-grid select{width:100%;min-width:0;border:1px solid #cdd9ef;border-radius:9px;padding:9px;background:#fff;color:#172544;font:inherit}
+.panel-edit-grid .full{grid-column:1/-1}
+.panel-nav button:focus-visible,.panel-main button:focus-visible,.panel-main input:focus-visible,.panel-main select:focus-visible{outline:3px solid #5579ff;outline-offset:2px}
+@media(max-width:800px){
+  .nova-dashboard{grid-template-columns:1fr}
+  .panel-sidebar{display:grid;grid-template-columns:1fr auto;gap:12px;padding:14px 16px}
+  .panel-sidebar #logoutButton{margin:0;grid-column:2;grid-row:1}
+  .panel-nav{grid-column:1/-1;grid-template-columns:repeat(4,minmax(0,1fr))}
+  .panel-nav button{justify-content:center;padding:9px 4px;gap:4px;font-size:11px}
+}
+@media(max-width:520px){
+  .panel-grid{grid-template-columns:1fr}
+  .panel-metrics{gap:6px}
+  .panel-metric{padding:10px}
+  .panel-metric span{font-size:10px}
+  .panel-nav button span{display:none}
+  .device-list li{align-items:flex-start;flex-wrap:wrap}
+}
 #faceRecognitionVideo{width:100%;max-width:270px;aspect-ratio:1;object-fit:cover;transform:scaleX(-1);border-radius:16px;background:#17243a}
 
 h1,h2,h3,.logo,.profile-step legend{font-family:var(--font-heading);font-weight:700}
@@ -122,26 +158,69 @@ h1,h2,h3,.logo,.profile-step legend{font-family:var(--font-heading);font-weight:
   <button class="secondary" id="existingAccount" type="button">Ya tengo una cuenta</button>
 </form><div class="registration-progress"><div class="progress-meta"><span>Registro de cuenta</span><strong id="profileProgress">Paso 1 de 3</strong></div><div class="progress"><div class="bar"></div></div></div></div></section>
 <section class="screen" id="dashboard" hidden>
-<div class="dashboard">
-  <nav class="dash-head"><div class="logo"><span class="logo-mark">✦</span>nova.</div><button class="secondary" id="logoutButton">Cerrar sesión</button></nav>
-  <header class="panel-heading"><div class="avatar" id="panelInitial" aria-hidden="true"></div><div><h1>Hola, <span id="panelName"></span></h1><p id="panelEmail"></p></div></header>
-  <nav class="panel-tabs" aria-label="Secciones del panel">
-    <button type="button" data-panel="overview" aria-pressed="true">Inicio</button>
-    <button type="button" data-panel="devices" aria-pressed="false">Dispositivos</button>
-    <button type="button" data-panel="profile" aria-pressed="false">Mi perfil</button>
-  </nav>
-  <p class="nova-message" id="panelMessage" role="status" hidden></p>
-  <div id="panel-overview" class="panel-cards">
-    <article class="panel-card"><h2>Correo electrónico</h2><p><span class="email-state" id="emailState">Email no verificado</span></p><button class="primary" type="button" id="sendVerification">Verificar correo</button></article>
-    <article class="panel-card"><h2>Acceso a tu cuenta</h2><p>Revisá las sesiones abiertas o autorizá el ingreso en una computadora.</p><button class="secondary" type="button" data-open-devices>Ver dispositivos</button><button class="secondary" id="enableAccess" type="button" hidden>Habilitar acceso</button>
-    <button class="secondary" id="addPasskey" type="button" hidden>Guardar clave en este dispositivo</button></article>
-    <article class="panel-card"><h2>Reconocimiento facial</h2><p>Tu referencia facial se guarda automáticamente en el navegador que usaste para verificarte. Al ingresar, confirmás con tu clave de acceso.</p><button class="secondary" id="deleteFace" type="button" hidden>Borrar el rostro guardado</button></article>
-  </div>
-  <article class="panel-card" id="panel-devices" hidden>
-    <h2>Dispositivos conectados</h2><p>Sesiones abiertas de tu cuenta. Podés cerrar el acceso en otro dispositivo.</p>
-    <button class="secondary" type="button" id="refreshDevices">Actualizar</button><ul class="device-list" id="deviceList"></ul>
-  </article>
-  <article class="panel-card" id="panel-profile" hidden><h2>Datos de tu perfil</h2><dl class="profile-details" id="profileDetails"></dl></article>
+<div class="nova-dashboard">
+  <aside class="panel-sidebar">
+    <div class="logo"><span class="logo-mark">✦</span>nova.</div>
+    <nav class="panel-nav" aria-label="Secciones de la cuenta">
+      <button type="button" data-panel="overview" aria-pressed="true"><span aria-hidden="true">⌂</span>Inicio</button>
+      <button type="button" data-panel="devices" aria-pressed="false"><span aria-hidden="true">▤</span>Dispositivos</button>
+      <button type="button" data-panel="security" aria-pressed="false"><span aria-hidden="true">◇</span>Seguridad</button>
+      <button type="button" data-panel="profile" aria-pressed="false"><span aria-hidden="true">○</span>Mi perfil</button>
+    </nav>
+    <button class="secondary" id="logoutButton" type="button">Cerrar sesión</button>
+  </aside>
+  <main class="panel-main">
+    <header class="panel-header"><h1 id="panelPageTitle">Inicio</h1><div class="avatar" id="panelInitial" aria-hidden="true"></div></header>
+    <p class="nova-message" id="panelMessage" role="status" hidden></p>
+    <section id="panel-overview">
+      <div class="panel-hero">
+        <h2>Hola, <span id="panelName"></span></h2><p id="panelEmail"></p>
+        <div class="panel-actions"><button class="secondary" id="enableAccess" type="button" hidden>Habilitar acceso por QR</button><button class="secondary" type="button" data-open-panel="devices">Ver dispositivos</button></div>
+      </div>
+      <div class="panel-metrics">
+        <div class="panel-metric"><span>Sesiones activas</span><strong id="sessionCount">—</strong></div>
+        <div class="panel-metric"><span>Claves de acceso</span><strong id="passkeyCount">—</strong></div>
+        <div class="panel-metric"><span>Cuenta creada</span><strong id="memberSince">—</strong></div>
+      </div>
+      <div class="panel-grid">
+        <article class="panel-card"><h3>Protegé tu acceso</h3><p>Administrá las claves de acceso y la referencia facial de este navegador.</p><button class="secondary" type="button" data-open-panel="security">Ir a seguridad</button></article>
+        <article class="panel-card"><h3>Mantené tus datos al día</h3><p>Consultá y actualizá los datos de tu perfil.</p><button class="secondary" type="button" data-open-panel="profile">Ver mi perfil</button></article>
+      </div>
+    </section>
+    <section id="panel-devices" hidden>
+      <header class="panel-section-header"><h2>Sesiones abiertas</h2><p>Revisá dónde está abierta tu cuenta y cerrá accesos que ya no uses.</p></header>
+      <article class="panel-card">
+        <div class="panel-actions"><button class="secondary" type="button" id="refreshDevices">Actualizar lista</button><button class="secondary" type="button" id="revokeOthers" hidden>Cerrar las otras sesiones</button></div>
+        <ul class="device-list" id="deviceList"></ul>
+      </article>
+    </section>
+    <section id="panel-security" hidden>
+      <header class="panel-section-header"><h2>Métodos de acceso</h2><p>Administrá cómo ingresás a tu cuenta de Nova.</p></header>
+      <div class="panel-grid">
+        <article class="panel-card"><h3>Claves de acceso</h3><p>Usá el rostro, la huella o el PIN que tengas configurado en tu dispositivo.</p><button class="primary" id="addPasskey" type="button" hidden>Agregar clave de acceso</button></article>
+        <article class="panel-card"><h3>Reconocimiento facial</h3><p id="faceSecurityState"></p><button class="secondary" id="deleteFace" type="button" hidden>Borrar referencia facial</button></article>
+        <article class="panel-card"><h3>Acceso por QR</h3><p>En la computadora, elegí Iniciar sesión. En el panel del celular, tocá Habilitar acceso por QR y escaneá el código.</p></article>
+      </div>
+    </section>
+    <section id="panel-profile" hidden>
+      <header class="panel-section-header"><h2>Datos personales</h2><p>Datos que guardaste al crear tu cuenta.</p></header>
+      <article class="panel-card">
+        <div id="profileRead"><dl class="profile-details" id="profileDetails"></dl><button class="primary" id="editProfile" type="button">Editar perfil</button></div>
+        <form id="editProfileForm" hidden>
+          <div class="panel-edit-grid">
+            <label>Nombre<input id="editName" required maxlength="48" autocomplete="given-name"></label>
+            <label>Apellido<input id="editSurname" required maxlength="60" autocomplete="family-name"></label>
+            <label>Edad<input id="editAge" type="number" required min="1" max="120"></label>
+            <label>Sexo<select id="editSex" required><option value="femenino">Femenino</option><option value="masculino">Masculino</option><option value="otro">Otro</option><option value="sin-declarar">Prefiero no decirlo</option></select></label>
+            <label class="full">Nacionalidad<select id="editCountry" required></select></label>
+            <label>Provincia o estado<input id="editProvince" required maxlength="120"></label>
+            <label>Localidad<input id="editCity" required maxlength="120"></label>
+          </div>
+          <div class="panel-actions"><button class="primary" id="saveProfile" type="submit">Guardar cambios</button><button class="secondary" id="cancelProfileEdit" type="button">Cancelar</button></div>
+        </form>
+      </article>
+    </section>
+  </main>
 </div>
 </section><script>
 
@@ -228,7 +307,11 @@ function savedFaces(){
 function updateFaceButtons(){
   const faces=savedFaces();
   $('recognizeFace').hidden=!faces.length;
-  $('deleteFace').hidden=!faces.some(face=>face.id===accountCredential);
+  const hasReference=faces.some(face=>face.id===accountCredential);
+  $('deleteFace').hidden=!hasReference;
+  $('faceSecurityState').textContent=hasReference
+    ?'Hay una referencia guardada en este navegador. Se usa para encontrar tu cuenta con la cámara.'
+    :'Este navegador no tiene una referencia guardada para tu cuenta. La referencia se guarda en el navegador donde hacés el registro.';
 }
 function stopFaceRecognition(){
   faceOperation=null;
@@ -366,12 +449,17 @@ $('addPasskey').onclick=async()=>{
     if(!window.SimpleWebAuthnBrowser)throw Error('No se pudo cargar el servicio de claves de acceso.');
     const response=await window.SimpleWebAuthnBrowser.startRegistration({optionsJSON});
     await api('/passkey/register',{token:sessionToken,response});
+    refreshAccount().catch(()=>{});
     panelMessage('Clave guardada. La próxima vez podés ingresar desde esta dirección.');
   }catch(error){panelMessage(error.message||'No se pudo guardar la clave.')}
   finally{button.disabled=false}
 };
 const panelPath=homePath+'panel';
+
 const panelButtons=[...document.querySelectorAll('[data-panel]')];
+const panelTitles={overview:'Inicio',devices:'Dispositivos',security:'Seguridad',profile:'Mi perfil'};
+const profileFields={name:'editName',surname:'editSurname',age:'editAge',sex:'editSex',country:'editCountry',province:'editProvince',city:'editCity'};
+let panelAccount=null,deviceLoad=0;
 function panelMessage(message=''){
   $('panelMessage').textContent=message;
   $('panelMessage').hidden=!message;
@@ -382,22 +470,25 @@ function selectPanel(section){
     button.setAttribute('aria-pressed',active);
     $('panel-'+button.dataset.panel).hidden=!active;
   }
+  $('panelPageTitle').textContent=panelTitles[section];
   panelMessage();
   if(section==='devices')loadDevices();
 }
 for(const button of panelButtons)button.onclick=()=>selectPanel(button.dataset.panel);
-document.querySelector('[data-open-devices]').onclick=()=>selectPanel('devices');
+for(const button of document.querySelectorAll('[data-open-panel]'))button.onclick=()=>selectPanel(button.dataset.openPanel);
 function renderAccount(account){
+  panelAccount=account;
   $('panelEmail').textContent=account.email;
-  const verified=Boolean(account.emailVerifiedAt);
-  $('emailState').textContent=verified?'Email verificado':'Email no verificado';
-  $('emailState').dataset.verified=String(verified);
-  $('sendVerification').hidden=verified;
+  $('panelName').textContent=account.name;
+  $('panelInitial').textContent=account.name.charAt(0).toUpperCase();
+  $('sessionCount').textContent=account.sessionCount??'—';
+  $('passkeyCount').textContent=account.passkeyCount??'—';
+  $('memberSince').textContent=account.createdAt?new Date(account.createdAt).toLocaleDateString('es-AR',{month:'short',year:'numeric'}):'—';
   const data=$('profileDetails');
   data.replaceChildren();
   const names=new Intl.DisplayNames(['es'],{type:'region'});
   for(const [label,value] of [
-    ['Nombre',account.name+' '+account.surname],['Email',account.email],['Edad',account.age],
+    ['Nombre',account.name+' '+account.surname],['Correo de la cuenta',account.email],['Edad',account.age],
     ['Sexo',{'otro':'Otro','sin-declarar':'Prefiero no decirlo','femenino':'Femenino','masculino':'Masculino'}[account.sex]],
     ['Nacionalidad',account.country&&names.of(account.country)],['Provincia',account.province],['Localidad',account.city]
   ]){
@@ -412,19 +503,57 @@ async function refreshAccount(){
   if(token===sessionToken)renderAccount(account);
   return account;
 }
+function showProfileEditor(editing){
+  $('profileRead').hidden=editing;
+  $('editProfileForm').hidden=!editing;
+}
+$('editProfile').onclick=async()=>{
+  try{
+    if(!panelAccount?.country)await refreshAccount();
+    $('editCountry').replaceChildren(...Array.from(countrySelect.options,option=>option.cloneNode(true)));
+    for(const [key,id] of Object.entries(profileFields))$(id).value=panelAccount[key]??'';
+    showProfileEditor(true);
+    $('editName').focus();
+  }catch(error){panelMessage(error.message)}
+};
+$('cancelProfileEdit').onclick=()=>showProfileEditor(false);
+$('editProfileForm').onsubmit=async event=>{
+  event.preventDefault();
+  const button=$('saveProfile');
+  const profile=Object.fromEntries(Object.entries(profileFields).map(([key,id])=>[key,$(id).value.trim()]));
+  profile.age=Number(profile.age);
+  button.disabled=true;
+  try{
+    await api('/profile/update',{token:sessionToken,profile});
+    await refreshAccount();
+    showProfileEditor(false);
+    panelMessage('Cambios guardados.');
+  }catch(error){panelMessage(error.message)}
+  finally{button.disabled=false}
+};
 async function loadDevices(){
+  const load=++deviceLoad,token=sessionToken;
   const list=$('deviceList'),button=$('refreshDevices');
   button.disabled=true;
   try{
-    const {devices}=await api('/devices',{token:sessionToken});
+    const {devices}=await api('/devices',{token});
+    if(load!==deviceLoad||token!==sessionToken)return;
+    $('sessionCount').textContent=devices.length;
+    $('revokeOthers').hidden=!devices.some(device=>!device.current);
     list.replaceChildren();
     for(const device of devices){
       const item=document.createElement('li'),info=document.createElement('div');
       const name=document.createElement('strong'),date=document.createElement('small');
-      name.textContent=device.name+(device.current?' · Este dispositivo':'');
+      name.textContent=device.name;
+      info.append(name);
+      if(device.current){
+        const current=document.createElement('span');
+        current.className='device-current';current.textContent='Este dispositivo';
+        info.append(current);
+      }
       date.textContent=(device.createdAt?'Ingresó el '+new Date(device.createdAt).toLocaleString('es-AR')+' · ':'')+
         'Vence el '+new Date(device.expiresAt).toLocaleDateString('es-AR');
-      info.append(name,date);item.append(info);
+      info.append(date);item.append(info);
       if(!device.current&&device.id){
         const revoke=document.createElement('button');
         revoke.className='secondary';revoke.type='button';revoke.textContent='Cerrar sesión';
@@ -437,17 +566,18 @@ async function loadDevices(){
       }
       list.append(item);
     }
-  }catch(error){panelMessage(error.message)}
-  finally{button.disabled=false}
+  }catch(error){if(load===deviceLoad)panelMessage(error.message)}
+  finally{if(load===deviceLoad)button.disabled=false}
 }
 $('refreshDevices').onclick=loadDevices;
-$('sendVerification').onclick=async()=>{
-  const button=$('sendVerification');
-  button.disabled=true;panelMessage();
+$('revokeOthers').onclick=async()=>{
+  if(!confirm('¿Cerrar todas las sesiones excepto la de este dispositivo?'))return;
+  const button=$('revokeOthers');
+  button.disabled=true;
   try{
-    const result=await api('/email/send',{token:sessionToken});
-    if(result.verified)await refreshAccount();
-    else panelMessage('Te enviamos un enlace. Revisá tu bandeja de entrada y correo no deseado.');
+    await api('/devices/revoke-others',{token:sessionToken});
+    await loadDevices();
+    panelMessage('Cerraste las otras sesiones.');
   }catch(error){panelMessage(error.message)}
   finally{button.disabled=false}
 };
@@ -490,6 +620,7 @@ function finishSignIn({session,account}){
   desktopRequest=null;
   phoneRequest=null;
   $('enableAccess').hidden=!isPhone;
+  showProfileEditor(false);
   selectPanel('overview');
   renderAccount(account);
   welcome(account.name);
@@ -689,6 +820,7 @@ $('cancelRegistration').onclick=()=>{cancelRequest();showScreen('home')};
 $('logoutButton').onclick=()=>{
   if(sessionToken)api('/logout',{token:sessionToken}).catch(()=>{});
   sessionToken=null;
+  panelAccount=null;
   accountCredential=null;
   updateFaceButtons();
   sessionStorage.removeItem(sessionKey);
@@ -804,22 +936,8 @@ $('backButton').onclick=()=>{
   if('speechSynthesis' in window)speechSynthesis.cancel();
   showScreen(sessionToken?'dashboard':'home');
 };
-const emailConfirmation=/^#verify-email=([A-Za-z0-9_-]{43})$/.exec(location.hash);
 const incoming=readQR(location.href);
-if(emailConfirmation){
-  history.replaceState(null,'',homePath);
-  showScreen('verify');
-  showApproval('Verificá tu correo','Confirmá que este correo te pertenece.','Confirmar correo',async()=>{
-    await api('/email/confirm',{token:emailConfirmation[1]});
-    if(sessionToken){
-      const account=await refreshAccount().catch(()=>null);
-      if(account){$('enableAccess').hidden=!isPhone;welcome(account.name);panelMessage('Tu correo se verificó.');return}
-    }
-    $('phoneApprovalTitle').textContent='Correo verificado';
-    $('phoneApprovalText').textContent='Ya podés volver a tu panel.';
-    $('confirmPhone').hidden=true;
-  });
-}else if(incoming){
+if(incoming){
   history.replaceState(null,'',location.pathname+location.search);
   openQR(incoming);
 }else if(sessionToken){

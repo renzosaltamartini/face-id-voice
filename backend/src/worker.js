@@ -41,7 +41,7 @@ function profileFrom(input) {
 }
 
 export default {
-  async fetch(request, { DB, BREVO_API_KEY, NOVA_EMAIL_FROM, NOVA_WEB_ORIGIN }) {
+  async fetch(request, { DB, NOVA_WEB_ORIGIN }) {
     const origin = request.headers.get('Origin');
     if (!origin || origin !== NOVA_WEB_ORIGIN) {
       return Response.json({ error: 'Origen no autorizado.' }, { status: 403 });
@@ -78,18 +78,7 @@ export default {
         qr.make();
         return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
       }
-      if (route === '/email/confirm') {
-        if (!validToken(body.token)) return fail(400, 'El enlace de verificación no es válido.');
-        const digest = await hash(body.token);
-        const [result] = await DB.batch([
-          query(`UPDATE accounts SET email_verified_at = ? WHERE id = (
-            SELECT account_id FROM email_verifications WHERE token_hash = ? AND expires_at > ?)
-            AND email_verified_at IS NULL`, now, digest, now),
-          query('DELETE FROM email_verifications WHERE token_hash = ?', digest),
-        ]);
-        return result.meta.changes === 1 ? json({ verified: true }) : fail(410, 'El enlace venció o ya fue usado.');
-      }
-      if (['/me', '/logout', '/devices', '/devices/revoke', '/email/send', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
+      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/profile/update', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -97,9 +86,22 @@ export default {
           return json({});
         }
         const account = await query(`SELECT a.id, a.given_name AS name, a.family_name AS surname, a.email,
-          a.email_verified_at AS emailVerifiedAt, a.age, a.sex, a.nationality AS country, a.province, a.locality AS city
-          FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`, key, now).first();
+          a.age, a.sex, a.nationality AS country, a.province, a.locality AS city, a.created_at AS createdAt,
+          (SELECT COUNT(*) FROM sessions active WHERE active.account_id = a.id AND active.expires_at > ?) AS sessionCount,
+          (SELECT COUNT(*) FROM passkeys p WHERE p.account_id = a.id AND p.rp_id = ?) AS passkeyCount
+          FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`, now, rpID, key, now).first();
         if (!account) return fail(401, 'Volvé a iniciar sesión.');
+        if (route === '/profile/update') {
+          const profile = profileFrom({ ...body.profile, email: account.email });
+          if (!profile) return fail(400, 'Revisá los datos del perfil.');
+          await query(`UPDATE accounts SET given_name = ?, family_name = ?, age = ?, sex = ?, nationality = ?, province = ?, locality = ?
+            WHERE id = ?`, profile.name, profile.surname, profile.age, profile.sex, profile.country, profile.province, profile.city, account.id).run();
+          return json({ updated: true });
+        }
+        if (route === '/devices/revoke-others') {
+          const result = await query('DELETE FROM sessions WHERE account_id = ? AND token_hash <> ?', account.id, key).run();
+          return json({ closed: result.meta.changes });
+        }
         if (route === '/face/credential') {
           const credential = await query('SELECT id FROM passkeys WHERE account_id = ? AND rp_id = ? ORDER BY rowid DESC LIMIT 1',
             account.id, rpID).first();
@@ -152,33 +154,6 @@ export default {
           if (!validToken(body.id)) return fail(400, 'Dispositivo inválido.');
           await query('DELETE FROM sessions WHERE account_id = ? AND device_id = ? AND token_hash <> ?', account.id, body.id, key).run();
           return json({});
-        }
-        if (route === '/email/send') {
-          if (account.emailVerifiedAt) return json({ verified: true });
-          if (!BREVO_API_KEY || !NOVA_EMAIL_FROM) return fail(503, 'El envío de correos todavía no está habilitado.');
-          const secret = token();
-          const digest = await hash(secret);
-          const sent = await query(`INSERT INTO email_verifications (account_id, token_hash, expires_at, sent_at)
-            VALUES (?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET token_hash = excluded.token_hash,
-            expires_at = excluded.expires_at, sent_at = excluded.sent_at WHERE email_verifications.sent_at <= ?`,
-          account.id, digest, now + 30 * 60_000, now, now - 60_000).run();
-          if (!sent.meta.changes) return fail(429, 'Esperá un minuto antes de pedir otro correo.');
-          const url = new URL(sitePath + '#verify-email=' + secret, origin).href;
-          try {
-            const delivered = await fetch('https://api.brevo.com/v3/smtp/email', {
-              method: 'POST', headers: { 'api-key': BREVO_API_KEY, 'content-type': 'application/json' },
-              body: JSON.stringify({
-                sender: { name: 'Nova', email: NOVA_EMAIL_FROM }, to: [{ email: account.email }],
-                subject: 'Verificá tu correo en Nova',
-                textContent: 'Confirmá tu correo en Nova: ' + url + '\nEl enlace vence en 30 minutos.',
-              }),
-            });
-            if (!delivered.ok) throw Error('Delivery rejected');
-          } catch {
-            await query('DELETE FROM email_verifications WHERE account_id = ? AND token_hash = ?', account.id, digest).run();
-            return fail(502, 'No se pudo enviar el correo. Volvé a intentarlo.');
-          }
-          return json({ sent: true });
         }
         delete account.id;
         return json(account);
