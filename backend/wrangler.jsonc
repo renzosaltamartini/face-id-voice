@@ -1,0 +1,12 @@
+{
+  "name": "nova-face-id",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-11",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nova-accounts",
+      "database_id": "8feea4d2-2eb3-45e1-8778-5b5f9ee3c387"
+    }
+  ]
+}

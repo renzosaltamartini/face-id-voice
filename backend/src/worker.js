@@ -1,0 +1,167 @@
+import {
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
+} from '@simplewebauthn/server';
+import qrcode from 'qrcode-generator';
+
+const origin = 'https://renzosaltamartini.github.io';
+const site = origin + '/face-id-voice/';
+const rpID = new URL(origin).hostname;
+const encoder = new TextEncoder();
+const token = () => toBase64(crypto.getRandomValues(new Uint8Array(32)));
+const toBase64 = bytes => btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+const fromBase64 = value => Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')), char => char.charCodeAt(0));
+const hash = async value => toBase64(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value))));
+const validToken = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
+const cors = {
+  'Access-Control-Allow-Origin': origin,
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Cache-Control': 'no-store',
+};
+const json = (value, status = 200) => Response.json(value, { status, headers: cors });
+const fail = (status, message) => json({ error: message }, status);
+
+function profileFrom(input) {
+  const text = key => typeof input?.[key] === 'string' ? input[key].trim() : '';
+  const profile = {
+    email: text('email').toLowerCase(), name: text('name'), surname: text('surname'),
+    age: input?.age, sex: text('sex'), country: text('country'),
+    province: text('province'), city: text('city'),
+  };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email) || profile.email.length > 254) return;
+  if (!profile.name || profile.name.length > 48 || !profile.surname || profile.surname.length > 60) return;
+  if (!Number.isInteger(profile.age) || profile.age < 1 || profile.age > 120) return;
+  if (!['femenino', 'masculino', 'otro', 'sin-declarar'].includes(profile.sex)) return;
+  if (!/^[A-Z]{2}$/.test(profile.country) || !profile.province || !profile.city ||
+      profile.province.length > 120 || profile.city.length > 120) return;
+  return profile;
+}
+
+export default {
+  async fetch(request, { DB }) {
+    if (request.headers.get('Origin') !== origin) return fail(403, 'Origen no autorizado.');
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+    if (request.method !== 'POST') return fail(405, 'Método no disponible.');
+    const query = (sql, ...parameters) => DB.prepare(sql).bind(...parameters);
+    const now = Date.now();
+    try {
+      const raw = await request.text();
+      if (raw.length > 24_000) return fail(413, 'Solicitud demasiado grande.');
+      const body = JSON.parse(raw);
+      const route = new URL(request.url).pathname;
+      if (route === '/new') {
+        if (!['sign-in', 'registration'].includes(body.purpose)) return fail(400, 'Opción incorrecta.');
+        const id = token(), desktop = token(), phone = token(), expires = now + 5 * 60_000;
+        await DB.batch([
+          query('DELETE FROM qr_requests WHERE expires_at < ?', now),
+          query('DELETE FROM sessions WHERE expires_at < ?', now),
+          query('INSERT INTO qr_requests (id, desktop_token_hash, phone_token_hash, purpose, expires_at) VALUES (?, ?, ?, ?, ?)',
+            id, await hash(desktop), await hash(phone), body.purpose, expires),
+        ]);
+        const url = new URL(site);
+        url.hash = 'qr=' + id + '.' + phone;
+        const qr = qrcode(0, 'M');
+        qr.addData(url.href);
+        qr.make();
+        return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
+      }
+      if (route === '/me' || route === '/logout') {
+        if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
+        const key = await hash(body.token);
+        if (route === '/logout') {
+          await query('DELETE FROM sessions WHERE token_hash = ?', key).run();
+          return json({});
+        }
+        const account = await query(`SELECT a.given_name AS name, a.family_name AS surname, a.email
+          FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`, key, now).first();
+        return account ? json(account) : fail(401, 'Volvé a iniciar sesión.');
+      }
+      if (!['/status', '/finish', '/phone', '/options', '/approve'].includes(route)) return fail(404, 'Opción no disponible.');
+      if (!validToken(body.id) || !validToken(body.token)) return fail(400, 'Solicitud inválida.');
+      const tokenHash = await hash(body.token);
+      const isDesktop = ['/status', '/finish'].includes(route);
+      const handoff = await query(`SELECT * FROM qr_requests
+        WHERE id = ? AND ${isDesktop ? 'desktop_token_hash' : 'phone_token_hash'} = ? AND expires_at > ? AND consumed_at IS NULL`,
+      body.id, tokenHash, now).first();
+      if (!handoff) return fail(410, 'El código venció o ya fue usado.');
+      if (route === '/status') return json({ approved: Boolean(handoff.approved_at) });
+      if (route === '/phone') return json({ purpose: handoff.purpose, approved: Boolean(handoff.approved_at) });
+
+      const registration = handoff.purpose === 'registration';
+      if (route === '/options') {
+        if (handoff.approved_at) return fail(409, 'Ya se aprobó esta solicitud.');
+        const options = registration
+          ? await generateRegistrationOptions({
+            rpName: 'Nova', rpID, userName: 'Cuenta Nova', userID: encoder.encode(handoff.id),
+            attestationType: 'none', supportedAlgorithmIDs: [-7, -257],
+            authenticatorSelection: { authenticatorAttachment: 'platform', residentKey: 'required', userVerification: 'required' },
+          })
+          : await generateAuthenticationOptions({ rpID, userVerification: 'required' });
+        await query('UPDATE qr_requests SET challenge = ? WHERE id = ? AND approved_at IS NULL', options.challenge, handoff.id).run();
+        return json(options);
+      }
+
+      if (route === '/approve') {
+        if (!handoff.challenge || handoff.approved_at) return fail(409, 'Volvé a iniciar la confirmación.');
+        const expected = { expectedChallenge: handoff.challenge, expectedOrigin: origin, expectedRPID: rpID, requireUserVerification: true };
+        let account = null, pending = null, counterUpdate;
+        try {
+          if (registration) {
+            const result = await verifyRegistrationResponse({ ...expected, response: body.response });
+            if (!result.verified) return fail(401, 'No se pudo confirmar la clave de acceso.');
+            const { id, publicKey, counter } = result.registrationInfo.credential;
+            pending = JSON.stringify({ id, key: toBase64(publicKey), counter });
+          } else {
+            const passkey = await query('SELECT * FROM passkeys WHERE id = ?', body.response?.id ?? '').first();
+            if (!passkey) return fail(401, 'La clave de acceso no pertenece a una cuenta de Nova.');
+            const result = await verifyAuthenticationResponse({
+              ...expected, response: body.response,
+              credential: { id: passkey.id, publicKey: fromBase64(passkey.public_key), counter: passkey.counter },
+            });
+            if (!result.verified) return fail(401, 'No se pudo confirmar la identidad.');
+            account = passkey.account_id;
+            counterUpdate = query('UPDATE passkeys SET counter = MAX(counter, ?) WHERE id = ?', result.authenticationInfo.newCounter, passkey.id);
+          }
+        } catch {
+          return fail(401, 'No se pudo confirmar la identidad con el celular.');
+        }
+        const approve = query(`UPDATE qr_requests SET approved_at = ?, account_id = ?, pending_credential = ?, challenge = NULL
+          WHERE id = ? AND challenge = ? AND expires_at > ? AND approved_at IS NULL`,
+        now, account, pending, handoff.id, handoff.challenge, now);
+        const [result] = await DB.batch(counterUpdate ? [approve, counterUpdate] : [approve]);
+        return result.meta.changes === 1 ? json({ approved: true }) : fail(409, 'La solicitud cambió. Volvé a intentarlo.');
+      }
+
+      if (!handoff.approved_at) return fail(409, 'Todavía falta confirmar en el celular.');
+      const session = token(), sessionHash = await hash(session);
+      const commands = [];
+      const accountId = registration ? handoff.id : handoff.account_id;
+      if (registration) {
+        const data = profileFrom(body.profile);
+        if (!data) return fail(400, 'Revisá los datos del registro.');
+        const passkey = JSON.parse(handoff.pending_credential);
+        commands.push(query(`INSERT INTO accounts (id, email, given_name, family_name, age, sex, nationality, province, locality, created_at)
+          SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM qr_requests WHERE id = ? AND consumed_at IS NULL AND expires_at > ?`,
+        accountId, data.email, data.name, data.surname, data.age, data.sex, data.country, data.province, data.city, now, handoff.id, now));
+        commands.push(query(`INSERT INTO passkeys (id, account_id, public_key, counter)
+          SELECT ?, ?, ?, ? FROM qr_requests WHERE id = ? AND consumed_at IS NULL AND expires_at > ?`,
+        passkey.id, accountId, passkey.key, passkey.counter, handoff.id, now));
+      }
+      commands.push(query(`UPDATE qr_requests SET consumed_at = ?, redeem_hash = ?, pending_credential = NULL
+        WHERE id = ? AND consumed_at IS NULL AND approved_at IS NOT NULL AND expires_at > ?`, now, sessionHash, handoff.id, now));
+      commands.push(query(`INSERT INTO sessions (token_hash, account_id, expires_at)
+        SELECT ?, ?, ? FROM qr_requests WHERE id = ? AND redeem_hash = ?`, sessionHash, accountId, now + 7 * 86_400_000, handoff.id, sessionHash));
+      const result = await DB.batch(commands);
+      if (result.at(-1).meta.changes !== 1) return fail(410, 'El código venció o ya fue usado.');
+      const account = await query('SELECT given_name AS name, family_name AS surname, email FROM accounts WHERE id = ?', accountId).first();
+      return json({ session, account });
+    } catch (error) {
+      if (/UNIQUE constraint failed: accounts.email/i.test(String(error))) return fail(409, 'Ese correo ya está registrado.');
+      if (error instanceof SyntaxError) return fail(400, 'Solicitud inválida.');
+      return fail(500, 'No se pudo completar la solicitud. Intentá nuevamente.');
+    }
+  },
+};

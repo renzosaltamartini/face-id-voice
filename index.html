@@ -38,12 +38,17 @@
 .profile-actions .primary{flex:1}
 .registration-progress .bar{width:33.33%}
 #qrImage{max-width:100%;height:auto}
-</style></head><body>
+
+.nova-message{font-size:13px;color:#526078;line-height:1.5}
+#scannerVideo{width:100%;max-width:280px;aspect-ratio:1;object-fit:cover;border-radius:15px;background:#17243a}
+#enableAccess{margin-top:16px}
+</style><script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script></head><body>
 <section class="screen" id="home"><div class="shell"><nav class="nav"><div class="logo"><span class="logo-mark">✦</span>nova.</div><span class="nav-note">Tu espacio personal</span></nav><main class="home-main"><div class="home-copy"><div class="eyebrow">BIENVENIDO A NOVA</div><h1>Todo empieza<br>con <span>vos.</span></h1><p>Un espacio simple, pensado para vos. Ingresá con tu rostro y accedé a tu panel personal en segundos.</p><button class="primary" id="loginButton">Ingresar a mi cuenta &nbsp; →</button></div><div class="home-art" aria-hidden="true"><div class="art-card"><div class="art-face"></div><div class="art-line"></div><div class="art-line short"></div></div></div></main><footer class="foot">Nova · Experiencia de acceso personal</footer></div></section>
 <section class="screen" id="verify" hidden><div class="verify-shell"><button class="back" id="backButton">← &nbsp; Volver</button><div class="verify-header"><h1>Verificá tu identidad</h1></div><div class="device-choice" id="deviceChoice" hidden>
-  <p>Elegí dónde querés hacer la verificación facial.</p>
-  <button class="primary" id="verifyHere" type="button">Verificar en este dispositivo</button>
-  <button class="secondary" id="verifyPhone" type="button">Verificar desde mi celular</button>
+  <p id="devicePrompt">Elegí cómo continuar.</p>
+  <button class="primary" id="verifyHere" type="button">Iniciar sesión</button>
+  <button class="secondary" id="verifyPhone" type="button">Registrarme</button>
 </div>
 <div class="phase-top" id="phaseCard" aria-live="polite"><span class="phase-emoji" id="phaseEmoji">👀</span><span class="phase-label" id="phaseLabel">Mirá al frente</span><span class="phase-count" id="phaseCount">PASO 1 DE 5</span></div><div class="camera" id="camera"><video id="video" autoplay playsinline muted></video><canvas id="overlay"></canvas><svg class="face-guide" viewBox="0 0 320 332" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
   <defs>
@@ -56,7 +61,17 @@
   <rect width="320" height="332" fill="#142b45" fill-opacity=".17" mask="url(#outsideFaceOval)"/>
   <use class="oval" href="#faceOval"/>
   <g id="rayRing"></g>
-</svg><div class="hint" id="hint" aria-live="polite" hidden>Preparando cámara…</div></div><div class="verification-progress" id="verificationProgress"><div class="progress-meta"><span>Progreso de verificación</span><strong id="progressValue">0%</strong></div><div class="progress" id="verificationBar" role="progressbar" aria-label="Progreso de verificación" aria-valuenow="0"><div class="bar" id="bar"></div></div></div><div class="qr-fallback" id="qrFallback" hidden><div class="qr-icon">▦</div><h2>Continuá desde tu celular</h2><p>Escaneá el QR con la cámara de tu celular para abrir la verificación facial.</p><img id="qrImage" alt="Código QR para abrir Nova en el teléfono" width="190" height="190"><p class="qr-note">La verificación y la cuenta se abren en el celular.</p><button class="secondary" id="backToDevice" type="button">Volver a las opciones</button></div><div class="status" id="status" hidden></div><p class="detail" id="detail" hidden></p><div class="actions"><button class="primary" id="start" hidden>Continuar con cámara</button><button id="enroll" disabled>Registrar rostro</button><button id="verifyAction" disabled>Verificar identidad</button><button id="mute">Voz</button><button id="clear">Borrar</button></div></div></section>
+</svg><div class="hint" id="hint" aria-live="polite" hidden>Preparando cámara…</div></div><div class="verification-progress" id="verificationProgress"><div class="progress-meta"><span>Progreso de verificación</span><strong id="progressValue">0%</strong></div><div class="progress" id="verificationBar" role="progressbar" aria-label="Progreso de verificación" aria-valuenow="0"><div class="bar" id="bar"></div></div></div><p class="nova-message" id="novaMessage" role="status" hidden></p>
+<div class="qr-fallback" id="phoneApproval" hidden>
+  <h2 id="phoneApprovalTitle"></h2>
+  <p id="phoneApprovalText"></p>
+  <button class="primary" type="button" id="confirmPhone">Continuar</button>
+</div>
+<div class="qr-fallback" id="scannerCard" hidden>
+  <h2>Escaneá el código de la computadora</h2>
+  <video id="scannerVideo" playsinline muted></video>
+</div>
+<div class="qr-fallback" id="qrFallback" hidden><div class="qr-icon">▦</div><h2 id="qrTitle">Continuá desde tu celular</h2><p id="qrInstructions"></p><img id="qrImage" alt="Código QR para abrir Nova en el teléfono" width="190" height="190"><p class="qr-note">El código vence en cinco minutos.</p><button class="secondary" id="backToDevice" type="button">Volver a las opciones</button></div><div class="status" id="status" hidden></div><p class="detail" id="detail" hidden></p><div class="actions"><button class="primary" id="start" hidden>Continuar con cámara</button><button id="enroll" disabled>Registrar rostro</button><button id="verifyAction" disabled>Verificar identidad</button><button id="mute">Voz</button><button id="clear">Borrar</button></div></div></section>
 <section class="screen" id="registration" hidden><div class="registration-shell"><nav class="dash-head"><div class="logo"><span class="logo-mark">✦</span>nova.</div><button class="secondary" id="cancelRegistration">Cancelar</button></nav><div class="registration-intro"><div class="registration-check">✓</div><p>VERIFICACIÓN FACIAL COMPLETADA</p><h1>Creá tu cuenta</h1><span>Tu rostro ya fue verificado. Ahora completá tus datos para continuar.</span></div><form class="nameForm" id="nameForm" hidden>
   <fieldset class="profile-step"><legend>Nombre y apellido</legend><div class="form-grid"><label>Nombre<input id="personName" maxlength="48" autocomplete="given-name" required placeholder="Nombre"></label><label>Apellido<input id="personSurname" maxlength="60" autocomplete="family-name" required placeholder="Apellido"></label><label class="full">Correo electrónico<input id="personEmail" type="email" autocomplete="email" maxlength="254" required placeholder="nombre@ejemplo.com"></label></div></fieldset>
   <fieldset class="profile-step" hidden disabled><legend>Edad y sexo</legend><div class="form-grid"><label>Edad<input id="personAge" type="number" min="1" max="120" required placeholder="Edad"></label><label>Sexo<select id="personSex" required>
@@ -65,11 +80,10 @@
   <fieldset class="profile-step" hidden disabled><legend>Nacionalidad y localidad</legend><div class="form-grid"><label class="full">Nacionalidad<select id="personCountry" required><option value="">Seleccioná tu nacionalidad</option></select></label><label>Provincia / Estado<input id="personProvince" list="provinceList" required placeholder="Provincia o estado"><datalist id="provinceList"></datalist></label><label>Localidad<input id="personCity" list="cityList" required placeholder="Ciudad o localidad"><datalist id="cityList"></datalist></label></div><p class="form-help" id="locationHelp" aria-live="polite">Para Argentina podés elegir una sugerencia o escribir los datos manualmente.</p></fieldset>
   <div class="profile-actions"><button class="secondary" id="previousProfile" type="button" hidden>Atrás</button><button class="primary" id="nextProfile" type="submit">Continuar</button></div>
 </form><div class="registration-progress"><div class="progress-meta"><span>Registro de cuenta</span><strong id="profileProgress">Paso 1 de 3</strong></div><div class="progress"><div class="bar"></div></div></div></div></section>
-<section class="screen" id="dashboard" hidden><div class="dashboard"><nav class="dash-head"><div class="logo"><span class="logo-mark">✦</span>nova.</div><button class="secondary" id="logoutButton">Cerrar sesión</button></nav><p class="dash-intro">TU ESPACIO PERSONAL</p><h1 class="dash-title">¡Hola, <span id="panelName"></span>! 👋</h1><p class="dash-sub">Qué bueno verte de nuevo. Este es tu panel.</p><div class="dash-grid"><article class="dash-card primary-card"><div class="tag">TU CUENTA</div><h3>Todo en orden.</h3><p>Accediste correctamente a tu espacio personal.</p></article><article class="dash-card"><div class="tag">PERFIL</div><div class="avatar" id="panelInitial"></div><h3>Identidad registrada</h3><p>Tu credencial está guardada en este dispositivo.</p></article></div></div></section><script>
+<section class="screen" id="dashboard" hidden><div class="dashboard"><nav class="dash-head"><div class="logo"><span class="logo-mark">✦</span>nova.</div><button class="secondary" id="logoutButton">Cerrar sesión</button></nav><p class="dash-intro">TU ESPACIO PERSONAL</p><h1 class="dash-title">¡Hola, <span id="panelName"></span>! 👋</h1><p class="dash-sub">Qué bueno verte de nuevo. Este es tu panel.</p><button class="primary" id="enableAccess" type="button" hidden>Habilitar acceso</button><div class="dash-grid"><article class="dash-card primary-card"><div class="tag">TU CUENTA</div><h3>Todo en orden.</h3><p>Accediste correctamente a tu espacio personal.</p></article><article class="dash-card"><div class="tag">PERFIL</div><div class="avatar" id="panelInitial"></div><h3>Identidad registrada</h3><p>Tu cuenta está guardada en Nova.</p></article></div></div></section><script>
 
-const $=id=>document.getElementById(id),video=$('video'),overlay=$('overlay'),ctx=overlay.getContext('2d');let landmarker,stream,muted=false,working=false,lastResult=null;const KEY='identity-credential-v3',OLD='face-voice-demo-template-v1';let pendingTemplate=null;let starting=false;try{localStorage.removeItem('identity-credential-v1');localStorage.removeItem('identity-credential-v2');localStorage.removeItem(OLD)}catch(e){}
+const $=id=>document.getElementById(id),video=$('video'),overlay=$('overlay'),ctx=overlay.getContext('2d');let landmarker,stream,muted=false,working=false,lastResult=null;const OLD='face-voice-demo-template-v1';let starting=false;try{localStorage.removeItem('identity-credential-v1');localStorage.removeItem('identity-credential-v2');localStorage.removeItem(OLD)}catch(e){}
 let lastSpoken='',speechEnabled=true;function selectVoice(){if(!('speechSynthesis' in window))return null;const voices=speechSynthesis.getVoices().filter(v=>/^es([-_]|$)/i.test(v.lang));return voices.find(v=>/premium|enhanced|natural|mejorada/i.test(v.name)&&/^es[-_]AR/i.test(v.lang))||voices.find(v=>/premium|enhanced|natural|mejorada/i.test(v.name))||voices.find(v=>/^es[-_]AR/i.test(v.lang))||voices[0]||null}function say(t){if(!speechEnabled||!('speechSynthesis' in window)||!t||t===lastSpoken)return;lastSpoken=t;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t.replace('Centrando tu rostro…','Mirá al frente.').replace('Girá la cabeza a tu derecha','Ahora girá suavemente a tu derecha.').replace('Ahora hacia tu izquierda','Muy bien. Ahora hacia la izquierda.').replace('Parpadeá una vez','Perfecto. Parpadeá una vez.').replace('Analizando tu rostro…','Un momento, estamos terminando.'));u.lang='es-AR';u.rate=.91;u.pitch=1.02;u.volume=.85;const voice=selectVoice();if(voice)u.voice=voice;speechSynthesis.speak(u)}catch(e){console.warn('Audio no disponible',e)}}function status(t,detail=''){$('status').textContent=t;if(detail)$('detail').textContent=detail;$('hint').textContent=t}
-function credential(){try{const x=JSON.parse(localStorage.getItem(KEY)||'null');return x&&typeof x.name==='string'&&Array.isArray(x.template)?x:null}catch{return null}}
 function welcome(name){setVerificationProgress(100);$('nameForm').hidden=true;$('start').hidden=true;$('camera').classList.add('done');$('panelName').textContent=name;$('panelInitial').textContent=name.charAt(0).toUpperCase();showScreen('dashboard');stream?.getTracks().forEach(t=>t.stop());stream=null}
 const countrySelect=$('personCountry');const countryNames=new Intl.DisplayNames(['es'],{type:'region'});const countries=[];for(let a=65;a<=90;a++)for(let b=65;b<=90;b++){const code=String.fromCharCode(a,b);const label=countryNames.of(code);if(label&&label!==code&&label.length>2&&!/^[A-Z]{2}$/.test(label)){const flag=String.fromCodePoint(...[...code].map(ch=>127397+ch.charCodeAt(0)));countries.push({code,label,flag})}}countries.sort((a,b)=>a.label.localeCompare(b.label,'es'));for(const x of countries){const option=document.createElement('option');option.value=x.code;option.textContent=x.flag+' '+x.label;countrySelect.appendChild(option)}
 async function loadProvinces(){if(countrySelect.value!=='AR'){return}try{const r=await fetch('https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre&max=100');if(!r.ok)throw Error('API');const data=await r.json();$('provinceList').replaceChildren();for(const p of data.provincias||[]){const o=document.createElement('option');o.value=p.nombre;$('provinceList').appendChild(o)}}catch(e){$('locationHelp').textContent='No se pudieron cargar sugerencias de provincias. Podés escribir los datos manualmente.'}}
@@ -95,7 +109,7 @@ $('previousProfile').onclick=()=>showProfileStep(profileStep-1);
 for(const field of profileForm.querySelectorAll('input[type="text"], input:not([type])')){
   field.addEventListener('input',()=>field.setCustomValidity(''));
 }
-profileForm.addEventListener('submit',event=>{
+profileForm.addEventListener('submit',async event=>{
   event.preventDefault();
   for(const field of profileSteps[profileStep].querySelectorAll('input:not([type])')){
     if(!field.value.trim()){
@@ -108,34 +122,138 @@ profileForm.addEventListener('submit',event=>{
     showProfileStep(profileStep+1);
     return;
   }
-  if(!pendingTemplate)return;
+
+  if(!desktopRequest)return;
   const name=$('personName').value.trim().replace(/\s+/g,' ');
-  const record={
-    version:3,name,email:$('personEmail').value.trim(),surname:$('personSurname').value.trim(),age:Number($('personAge').value),
-    sex:$('personSex').value,country:countrySelect.value,province:$('personProvince').value.trim(),
-    city:$('personCity').value.trim(),template:pendingTemplate,createdAt:new Date().toISOString()
+  const profile={
+    name,email:$('personEmail').value.trim(),surname:$('personSurname').value.trim(),
+    age:Number($('personAge').value),sex:$('personSex').value,country:countrySelect.value,
+    province:$('personProvince').value.trim(),city:$('personCity').value.trim()
   };
+  $('nextProfile').disabled=true;
   try{
-    localStorage.setItem(KEY,JSON.stringify(record));
-    pendingTemplate=null;
-    welcome(name);
-  }catch(err){
-    $('locationHelp').textContent='No se pudo guardar el registro en este navegador.';
+    const result=await api('/finish',{id:desktopRequest.id,token:desktopRequest.desktop,profile});
+    finishSignIn(result);
+  }catch(error){
+    $('locationHelp').textContent=error.message;
+  }finally{
+    $('nextProfile').disabled=false;
   }
 });
 async function loadVision(){if(window.vision?.FaceLandmarker)return;const urls=['https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.2/vision_bundle.mjs','https://unpkg.com/@mediapipe/tasks-vision@1.2.2/vision_bundle.mjs'];let errors=[];for(const url of urls){try{const mod=await import(url);if(mod.FaceLandmarker&&mod.FilesetResolver){window.vision=mod;window.visionWasmBase=url.includes('jsdelivr')?'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.2/wasm':'https://unpkg.com/@mediapipe/tasks-vision@1.2.2/wasm';return}throw Error('Módulo sin FaceLandmarker')}catch(e){errors.push(e.message)}}throw Error('No se pudo importar el módulo oficial de MediaPipe: '+errors.join('; '))}
-async function startCamera(){if(starting||landmarker)return;starting=true;const btn=$('start');btn.disabled=true;try{status('Solicitando acceso a la cámara…');if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia)throw Error('Abrí la web directamente en Safari mediante HTTPS, no dentro de otra aplicación.');stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});video.srcObject=stream;video.setAttribute('playsinline','');video.muted=true;if('speechSynthesis' in window){speechSynthesis.getVoices();}await video.play();if(!video.videoWidth){await new Promise(resolve=>{const timer=setTimeout(resolve,1800);video.addEventListener('loadedmetadata',()=>{clearTimeout(timer);resolve()},{once:true})})}status('Cámara activada. Cargando reconocimiento facial…');btn.hidden=true;try{await loadVision();const {FaceLandmarker,FilesetResolver}=window.vision;const vision=await FilesetResolver.forVisionTasks(window.visionWasmBase);landmarker=await FaceLandmarker.createFromOptions(vision,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',delegate:'CPU'},runningMode:'VIDEO',numFaces:1,outputFaceBlendshapes:true});$('enroll').disabled=false;$('verifyAction').disabled=false;status('Ubicá tu rostro dentro del óvalo.');requestAnimationFrame(tick);setTimeout(()=>{if(!working)flow(credential()?'verify':'enroll')},1200)}catch(err){status('Cámara activa, pero no se pudo cargar el reconocimiento.','Error de biblioteca: '+err.message+'; verificá tu conexión e intentá recargar.')}}catch(err){btn.disabled=false;btn.hidden=false;btn.textContent='Continuar con cámara';if(err.name==='NotFoundError'||err.name==='DevicesNotFoundError'){showQR();return}const msg=err.name==='NotAllowedError'?'Permiso de cámara denegado. Habilitalo en Safari.':err.name==='NotFoundError'?'No se encontró una cámara.':err.message;status('No se pudo activar la cámara: '+msg)}finally{starting=false}};
+async function startCamera(){if(starting||landmarker)return;starting=true;const current=phoneRequest;const btn=$('start');btn.disabled=true;try{status('Solicitando acceso a la cámara…');if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia)throw Error('Abrí la web directamente en Safari mediante HTTPS, no dentro de otra aplicación.');const media=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});if(phoneRequest!==current){media.getTracks().forEach(track=>track.stop());return}stream=media;video.srcObject=stream;video.setAttribute('playsinline','');video.muted=true;if('speechSynthesis' in window){speechSynthesis.getVoices();}await video.play();if(!video.videoWidth){await new Promise(resolve=>{const timer=setTimeout(resolve,1800);video.addEventListener('loadedmetadata',()=>{clearTimeout(timer);resolve()},{once:true})})}status('Cámara activada. Cargando reconocimiento facial…');btn.hidden=true;try{await loadVision();const {FaceLandmarker,FilesetResolver}=window.vision;const vision=await FilesetResolver.forVisionTasks(window.visionWasmBase);const model=await FaceLandmarker.createFromOptions(vision,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',delegate:'CPU'},runningMode:'VIDEO',numFaces:1,outputFaceBlendshapes:true});if(phoneRequest!==current){model.close();return}landmarker=model;$('enroll').disabled=false;$('verifyAction').disabled=false;status('Ubicá tu rostro dentro del óvalo.');requestAnimationFrame(tick);setTimeout(()=>{if(!working&&phoneRequest&&!$('verify').hidden)flow()},1200)}catch(err){notify('No se pudo cargar el reconocimiento facial. Revisá la conexión y volvé a abrir la verificación.')}}catch(err){btn.disabled=false;btn.hidden=false;btn.textContent='Continuar con cámara';if(err.name==='NotFoundError'||err.name==='DevicesNotFoundError'){notify('No se encontró una cámara en este dispositivo.');return}const msg=err.name==='NotAllowedError'?'Permiso de cámara denegado. Habilitalo en Safari.':err.name==='NotFoundError'?'No se encontró una cámara.':err.message;notify('No se pudo activar la cámara: '+msg)}finally{starting=false}};
 
-const phoneLink=new URL(location.href).searchParams.get('mobile')==='1';
+
+const serverURL='https://nova-face-id.nova-face-id.workers.dev';
 const ua=navigator.userAgent;
 const isPhone=/iPhone|iPod|Windows Phone/i.test(ua)||(/Android/i.test(ua)&&/Mobile/i.test(ua));
+const sessionKey='nova-session-v1';
+let desktopRequest=null,phoneRequest=null,scannerStream=null,pollTimer=null;
+let sessionToken=sessionStorage.getItem(sessionKey);
+function notify(message=''){
+  $('novaMessage').textContent=message;
+  $('novaMessage').hidden=!message;
+}
+async function api(route,body){
+  let result;
+  try{
+    result=await fetch(serverURL+route,{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)
+    });
+  }catch{
+    throw Error('No se pudo conectar con Nova. Revisá tu conexión.');
+  }
+  const data=await result.json().catch(()=>({}));
+  if(!result.ok)throw Error(data.error||'No se pudo completar la solicitud.');
+  return data;
+}
 function showVerificationMode(mode){
   $('deviceChoice').hidden=mode!=='choice';
-  $('qrFallback').hidden=mode!=='phone';
+  $('qrFallback').hidden=mode!=='qr';
+  $('phoneApproval').hidden=mode!=='approval';
+  $('scannerCard').hidden=mode!=='scanner';
   for(const id of ['camera','phaseCard','verificationProgress'])$(id).hidden=mode!=='camera';
   $('start').hidden=true;
+  notify();
 }
-function verifyOnDevice(){
+function showChoices(){
+  $('confirmPhone').hidden=false;
+  showScreen('verify');
+  showVerificationMode('choice');
+}
+function finishSignIn({session,account}){
+  sessionToken=session;
+  sessionStorage.setItem(sessionKey,session);
+  desktopRequest=null;
+  phoneRequest=null;
+  $('enableAccess').hidden=!isPhone;
+  welcome(account.name);
+}
+function openProfile(){
+  profileForm.reset();
+  showProfileStep(0,false);
+  profileForm.hidden=false;
+  showScreen('registration');
+}
+function showApproval(title,message,buttonText,action){
+  showVerificationMode('approval');
+  $('phoneApprovalTitle').textContent=title;
+  $('phoneApprovalText').textContent=message;
+  const button=$('confirmPhone');
+  button.hidden=false;
+  button.textContent=buttonText;
+  button.onclick=async()=>{
+    button.disabled=true;
+    notify();
+    try{await action()}catch(error){notify(error.message)}
+    finally{button.disabled=false}
+  };
+}
+async function waitForPhone(request){
+  if(desktopRequest!==request||$('verify').hidden)return;
+  try{
+    const data=await api('/status',{id:request.id,token:request.desktop});
+    if(desktopRequest!==request||$('verify').hidden)return;
+    if(data.approved){
+      if(request.purpose==='registration')openProfile();
+      else {
+        const result=await api('/finish',{id:request.id,token:request.desktop});
+        if(desktopRequest===request)finishSignIn(result);
+      }
+      return;
+    }
+    pollTimer=setTimeout(()=>waitForPhone(request),2500);
+  }catch(error){
+    if(desktopRequest===request){
+      notify(error.message);
+      if(Date.now()<request.expires)pollTimer=setTimeout(()=>waitForPhone(request),4000);
+    }
+  }
+}
+async function begin(purpose){
+  $('verifyHere').disabled=$('verifyPhone').disabled=true;
+  notify();
+  try{
+    const request={...await api('/new',{purpose}),purpose};
+    if($('verify').hidden)return;
+    desktopRequest=request;
+    if(isPhone){
+      phoneRequest={id:request.id,token:request.phone,purpose};
+      if(purpose==='registration')startFace();
+      else showApproval('Iniciá sesión','Confirmá con la clave de acceso de tu celular.','Usar clave de acceso',approvePhone);
+      return;
+    }
+    showVerificationMode('qr');
+    $('qrTitle').textContent=purpose==='registration'?'Registrate desde la computadora':'Autorizá el ingreso';
+    $('qrInstructions').textContent=purpose==='registration'
+      ?'Escaneá el QR con tu celular, verificá tu rostro y volvé a esta pantalla para completar tus datos.'
+      :'En el panel de Nova del celular, tocá Habilitar acceso y escaneá este QR.';
+    $('qrImage').src=request.image;
+    waitForPhone(request);
+  }catch(error){notify(error.message)}
+  finally{$('verifyHere').disabled=$('verifyPhone').disabled=false}
+}
+function startFace(){
   showVerificationMode('camera');
   $('start').onclick=startCamera;
   $('camera').classList.remove('done');
@@ -144,19 +262,119 @@ function verifyOnDevice(){
   setStep(0,'Preparando cámara…');
   startCamera();
 }
-$('loginButton').onclick=()=>{
+async function approvePhone(){
+  const {id,token,purpose}=phoneRequest;
+  const optionsJSON=await api('/options',{id,token});
+  if(!window.SimpleWebAuthnBrowser)throw Error('No se pudo cargar el servicio de claves de acceso.');
+  const {startRegistration,startAuthentication}=window.SimpleWebAuthnBrowser;
+  let response;
+  try{
+    response=await (purpose==='registration'?startRegistration:startAuthentication)({optionsJSON});
+  }catch{throw Error('No se confirmó la clave de acceso. Volvé a intentarlo.')}
+  await api('/approve',{id,token,response});
+  if(desktopRequest?.id===id){
+    if(purpose==='registration')openProfile();
+    else finishSignIn(await api('/finish',{id,token:desktopRequest.desktop}));
+    return;
+  }
+  phoneRequest=null;
+  showVerificationMode('approval');
+  $('phoneApprovalTitle').textContent='Confirmación enviada';
+  $('phoneApprovalText').textContent='Volvé a la computadora para continuar.';
+  $('confirmPhone').hidden=true;
+}
+function readQR(value){
+  try{
+    const url=new URL(value);
+    if(url.origin!==location.origin||url.pathname!==location.pathname)return null;
+    const match=/^#qr=([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{43})$/.exec(url.hash);
+    return match&&{id:match[1],token:match[2]};
+  }catch{return null}
+}
+async function openQR(parts,fromPanel=false){
   showScreen('verify');
-  if(isPhone||phoneLink)verifyOnDevice();
-  else showVerificationMode('choice');
+  showVerificationMode('approval');
+  $('confirmPhone').hidden=false;
+  try{
+    const {purpose,approved}=await api('/phone',parts);
+    if(approved)throw Error('La solicitud ya se confirmó.');
+    if(purpose==='sign-in'&&!fromPanel)throw Error('Abrí Nova en el celular, iniciá sesión y escaneá desde Habilitar acceso.');
+    phoneRequest={...parts,purpose};
+    showApproval(
+      purpose==='registration'?'Verificá tu rostro':'Habilitá el acceso',
+      purpose==='registration'?'Completá los cinco movimientos con la cámara.':'Confirmá con la clave de acceso de tu cuenta de Nova.',
+      'Continuar',purpose==='registration'?startFace:approvePhone
+    );
+  }catch(error){
+    $('phoneApprovalTitle').textContent='No se pudo abrir el código';
+    $('phoneApprovalText').textContent=error.message;
+    $('confirmPhone').hidden=true;
+  }
+}
+function stopScanner(){
+  scannerStream?.getTracks().forEach(track=>track.stop());
+  scannerStream=null;
+  $('scannerVideo').srcObject=null;
+}
+async function scanFromPanel(){
+  showScreen('verify');
+  showVerificationMode('scanner');
+  try{
+    if(!window.jsQR)throw Error('No se pudo cargar el lector QR.');
+    const media=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    if($('scannerCard').hidden||$('verify').hidden){media.getTracks().forEach(track=>track.stop());return}
+    scannerStream=media;
+    const preview=$('scannerVideo');
+    preview.srcObject=media;
+    await preview.play();
+    const canvas=document.createElement('canvas');
+    const context=canvas.getContext('2d',{willReadFrequently:true});
+    function frame(){
+      if(scannerStream!==media)return;
+      if(preview.videoWidth){
+        canvas.width=360;
+        canvas.height=Math.round(360*preview.videoHeight/preview.videoWidth);
+        context.drawImage(preview,0,0,canvas.width,canvas.height);
+        const pixels=context.getImageData(0,0,canvas.width,canvas.height);
+        const found=window.jsQR(pixels.data,pixels.width,pixels.height,{inversionAttempts:'dontInvert'});
+        const parts=found&&readQR(found.data);
+        if(parts){stopScanner();openQR(parts,true);return}
+      }
+      setTimeout(frame,130);
+    }
+    frame();
+  }catch(error){
+    stopScanner();
+    notify(error.message||'No se pudo abrir la cámara del celular.');
+  }
+}
+function cancelRequest(){
+  clearTimeout(pollTimer);
+  desktopRequest=null;
+  phoneRequest=null;
+  stopScanner();
+  stream?.getTracks().forEach(track=>track.stop());
+  stream=null;
+  landmarker=null;
+  lastResult=null;
+}
+$('loginButton').onclick=showChoices;
+$('verifyHere').onclick=()=>begin('sign-in');
+$('verifyPhone').onclick=()=>begin('registration');
+$('enableAccess').onclick=scanFromPanel;
+$('backToDevice').onclick=()=>{cancelRequest();showChoices()};
+$('cancelRegistration').onclick=()=>{cancelRequest();showScreen('home')};
+$('logoutButton').onclick=()=>{
+  if(sessionToken)api('/logout',{token:sessionToken}).catch(()=>{});
+  sessionToken=null;
+  sessionStorage.removeItem(sessionKey);
+  cancelRequest();
+  showScreen('home');
 };
-$('verifyHere').onclick=verifyOnDevice;
-$('verifyPhone').onclick=showQR;
-$('backToDevice').onclick=()=>showVerificationMode('choice');
-$('logoutButton').onclick=()=>{showScreen('home');if('speechSynthesis' in window)speechSynthesis.cancel();$('camera').classList.remove('done','good');setVerificationProgress(0);$('hint').textContent='Preparando cámara…';landmarker=null;lastResult=null;working=false;stream?.getTracks().forEach(t=>t.stop());stream=null};function showQR(){showVerificationMode('phone');const url=new URL(window.location.href);url.searchParams.set('mobile','1');url.hash='';$('qrImage').src='https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=12&data='+encodeURIComponent(url.href)}$('cancelRegistration').onclick=()=>{pendingTemplate=null;landmarker=null;lastResult=null;showScreen('home');stream?.getTracks().forEach(t=>t.stop());stream=null};function showScreen(id){for(const el of document.querySelectorAll('.screen'))el.hidden=el.id!==id;document.body.style.background='#f7f8fa';window.scrollTo(0,0)};
+function showScreen(id){for(const el of document.querySelectorAll('.screen'))el.hidden=el.id!==id;document.body.style.background='#f7f8fa';window.scrollTo(0,0)};
 let prevTime=-1;function tick(){if(video.readyState>=2&&landmarker){try{if(video.currentTime!==prevTime){prevTime=video.currentTime;lastResult=landmarker.detectForVideo(video,performance.now())}ctx.clearRect(0,0,overlay.width,overlay.height)}catch(e){console.error(e)}}if(stream)requestAnimationFrame(tick)}
-function vector(face){const ids=[33,133,263,362,1,4,61,291,13,14,152,10,234,454,70,300,105,334,168,6,197,195,5,98,327];const l=face[33],r=face[263];const scale=Math.hypot(r.x-l.x,r.y-l.y)||1;const cx=(l.x+r.x)/2,cy=(l.y+r.y)/2;return ids.flatMap(i=>[(face[i].x-cx)/scale,(face[i].y-cy)/scale])}function distance(a,b){return Math.sqrt(a.reduce((s,x,i)=>s+(x-b[i])**2,0)/a.length)}
-function wait(ms){return new Promise(r=>setTimeout(r,ms))}async function sample(){const all=[];for(let i=0;i<15;i++){await wait(130);const f=lastResult?.faceLandmarks?.[0];if(f)all.push(vector(f))}if(all.length<10)throw Error('No se detectó un rostro estable.');return all[0].map((_,j)=>all.reduce((s,a)=>s+a[j],0)/all.length)}
-function blend(name){return lastResult?.faceBlendshapes?.[0]?.categories?.find(x=>x.categoryName===name)?.score||0}function setStep(n,t,d){const p=Math.min(n,5);const phases=[['👀','Mirá al frente'],['👉','Girá a la derecha'],['👈','Girá a la izquierda'],['⬆️','Mirá hacia arriba'],['⬇️','Mirá hacia abajo'],['✅','Verificación completada']];$('camera').dataset.phase=String(p);$('phaseCard').hidden=false;$('phaseEmoji').textContent=phases[p][0];$('phaseLabel').textContent=phases[p][1];$('phaseCount').textContent=p<5?'PASO '+(p+1)+' DE 5':'LISTO';setVerificationProgress(p*20);status(t,d);$('camera').classList.toggle('good',n>0);if(n===1)say('Girá la cabeza hacia tu derecha.');if(n===2)say('Ahora girá hacia tu izquierda.');if(n===3&&t.startsWith('Parpadeá'))say('Parpadeá una vez.')}
+function wait(ms){return new Promise(r=>setTimeout(r,ms))}
+function setStep(n,t,d){const p=Math.min(n,5);const phases=[['👀','Mirá al frente'],['👉','Girá a la derecha'],['👈','Girá a la izquierda'],['⬆️','Mirá hacia arriba'],['⬇️','Mirá hacia abajo'],['✅','Verificación completada']];$('camera').dataset.phase=String(p);$('phaseCard').hidden=false;$('phaseEmoji').textContent=phases[p][0];$('phaseLabel').textContent=phases[p][1];$('phaseCount').textContent=p<5?'PASO '+(p+1)+' DE 5':'LISTO';setVerificationProgress(p*20);status(t,d);$('camera').classList.toggle('good',n>0);if(n===1)say('Girá la cabeza hacia tu derecha.');if(n===2)say('Ahora girá hacia tu izquierda.');if(n===3&&t.startsWith('Parpadeá'))say('Parpadeá una vez.')}
 function createRays(){
   const oval=$('faceOval');
   const cx=oval.cx.baseVal.value,cy=oval.cy.baseVal.value;
@@ -202,7 +420,66 @@ function setVerificationProgress(percent){
 let neutralPitch=null;function pitchPose(f){const eyes=(f[33].y+f[263].y)/2,chin=f[152].y,forehead=f[10].y,nose=f[1].y;return (nose-eyes)/Math.max(.01,chin-forehead)}async function awaitPitch(direction,timeout=22000){const until=Date.now()+timeout;let streak=0;while(Date.now()<until){await wait(130);const f=lastResult?.faceLandmarks?.[0];if(!f){streak=0;continue}const delta=(pitchPose(f)-(neutralPitch??pitchPose(f)))*direction;if(delta>.045){if(++streak>=3)return true}else streak=0}throw Error('No se detectó el movimiento vertical. Incliná la cabeza suavemente, sin mover el teléfono.')}function facePose(f){const left=f[234],right=f[454],nose=f[1];const width=Math.abs(right.x-left.x)||1;return (nose.x-(left.x+right.x)/2)/width}
 async function awaitFace(timeout=18000){let stable=0;const until=Date.now()+timeout;while(Date.now()<until){await wait(170);const f=lastResult?.faceLandmarks?.[0];if(f){const center=f[1];const size=Math.abs(f[454].x-f[234].x);if(center.x>.23&&center.x<.77&&center.y>.18&&center.y<.82&&size>.16){stable++;if(stable>=5)return true}else stable=0}else stable=0}return false}
 async function awaitTurn(direction,timeout=20000){const until=Date.now()+timeout;let streak=0;let maximum=0;while(Date.now()<until){await wait(130);const f=lastResult?.faceLandmarks?.[0];if(!f){streak=0;continue}const yaw=facePose(f);const signed=yaw*direction;maximum=Math.max(maximum,signed);if(signed>.065){if(++streak>=3)return true}else streak=0}throw Error('No se detectó el giro. Mové la cabeza lentamente, sin mover el teléfono.')}
-async function awaitBlink(timeout=16000){const until=Date.now()+timeout;let seenOpen=false;let closed=false;while(Date.now()<until){await wait(110);if(!lastResult?.faceLandmarks?.length)continue;const a=blend('eyeBlinkLeft'),b=blend('eyeBlinkRight');if(a<.27&&b<.27)seenOpen=true;if(seenOpen&&a>.42&&b>.42)closed=true;if(closed&&a<.32&&b<.32)return true}throw Error('No se detectó el parpadeo.')}
-async function flow(mode){if(working||!landmarker)return;working=true;$('enroll').disabled=$('verifyAction').disabled=true;try{setStep(0,'Centrando tu rostro…','Mirá de frente y mantené el teléfono quieto.');if(!await awaitFace())throw Error('No se encontró el rostro centrado.');neutralPitch=pitchPose(lastResult.faceLandmarks[0]);await wait(600);setStep(1,'Girá la cabeza a tu derecha','Giralo lentamente, como si miraras hacia tu hombro derecho.');await awaitTurn(-1);await wait(650);setStep(2,'Ahora hacia tu izquierda','Girá la cabeza hacia el otro lado.');await awaitTurn(1);await wait(650);setStep(3,'Mirá hacia arriba','Levantá suavemente la cabeza, sin mover el teléfono.');await awaitPitch(-1);await wait(650);setStep(4,'Mirá hacia abajo','Bajá suavemente la cabeza, sin mover el teléfono.');await awaitPitch(1);await wait(650);setStep(4,'Analizando tu rostro…','Mantené la mirada al frente.');await wait(1500);const v=await sample();if(mode==='enroll'){pendingTemplate=v;profileForm.reset();showProfileStep(0,false);$('nameForm').hidden=false;setStep(5,'Registro completado','Completá tus datos para continuar.');await wait(950);stream?.getTracks().forEach(t=>t.stop());stream=null;showScreen('registration')}else{const saved=credential();if(!saved)throw Error('No hay un rostro registrado.');const d=distance(v,saved.template);if(d<.115){setStep(5,'Identidad verificada','');const verifiedStream=stream;await wait(650);if(stream!==verifiedStream)return;welcome(saved.name)}else throw Error('El rostro no coincide con el registro guardado.')} $('camera').classList.add('done')}catch(e){$('camera').classList.remove('good');status('No se completó la validación',e.message);setVerificationProgress(0);$('start').hidden=false;$('start').textContent='Reintentar';$('start').disabled=false;$('start').onclick=()=>{ $('start').hidden=true;flow(credential()?'verify':'enroll')}}finally{working=false;$('enroll').disabled=$('verifyAction').disabled=false}}
-$('enroll').onclick=()=>flow('enroll');$('verifyAction').onclick=()=>flow('verify');$('backButton').onclick=()=>{showScreen('home');stream?.getTracks().forEach(t=>t.stop());stream=null;landmarker=null;working=false};document.addEventListener('visibilitychange',()=>{if(!document.hidden&&stream&&!$('verify').hidden){video.play().catch(()=>{})}});window.addEventListener('pagehide',()=>stream?.getTracks().forEach(t=>t.stop()));
+
+async function flow(){
+  if(working||!landmarker||!phoneRequest)return;
+  const current=phoneRequest;
+  const currentStream=stream;
+  working=true;
+  try{
+    setStep(0,'Centrando tu rostro…','Mirá de frente y mantené el teléfono quieto.');
+    if(!await awaitFace())throw Error('No se encontró el rostro centrado.');
+    if(phoneRequest!==current)return;
+    neutralPitch=pitchPose(lastResult.faceLandmarks[0]);
+    await wait(600);
+    setStep(1,'Girá la cabeza a tu derecha','Giralo lentamente.');
+    await awaitTurn(-1);
+    if(phoneRequest!==current)return;
+    await wait(650);
+    setStep(2,'Ahora hacia tu izquierda','Girá la cabeza hacia el otro lado.');
+    await awaitTurn(1);
+    if(phoneRequest!==current)return;
+    await wait(650);
+    setStep(3,'Mirá hacia arriba','Levantá suavemente la cabeza.');
+    await awaitPitch(-1);
+    if(phoneRequest!==current)return;
+    await wait(650);
+    setStep(4,'Mirá hacia abajo','Bajá suavemente la cabeza.');
+    await awaitPitch(1);
+    if(phoneRequest!==current)return;
+    setStep(5,'Verificación completada','');
+    await wait(650);
+    if(phoneRequest!==current)return;
+    currentStream?.getTracks().forEach(track=>track.stop());
+    stream=null;
+    landmarker=null;
+    $('confirmPhone').hidden=false;
+    showApproval('Guardá tu clave de acceso','Usá Face ID, huella o el PIN de tu celular para proteger tu cuenta.','Crear clave de acceso',approvePhone);
+  }catch(error){
+    if(phoneRequest!==current)return;
+    $('camera').classList.remove('good');
+    notify(error.message);
+    setVerificationProgress(0);
+    $('start').hidden=false;
+    $('start').textContent='Reintentar';
+    $('start').disabled=false;
+    $('start').onclick=()=>{$('start').hidden=true;notify();flow()};
+  }finally{working=false}
+}
+$('backButton').onclick=()=>{
+  cancelRequest();
+  if('speechSynthesis' in window)speechSynthesis.cancel();
+  showScreen(sessionToken?'dashboard':'home');
+};
+const incoming=readQR(location.href);
+if(incoming){
+  history.replaceState(null,'',location.pathname+location.search);
+  openQR(incoming);
+}else if(sessionToken){
+  api('/me',{token:sessionToken}).then(account=>{
+    $('enableAccess').hidden=!isPhone;
+    welcome(account.name);
+  }).catch(()=>{sessionToken=null;sessionStorage.removeItem(sessionKey)});
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&stream&&!$('verify').hidden){video.play().catch(()=>{})}});window.addEventListener('pagehide',()=>{stopScanner();stream?.getTracks().forEach(t=>t.stop())});
 </script></body></html>
