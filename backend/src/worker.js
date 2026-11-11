@@ -57,6 +57,19 @@ export default {
     if (request.method !== 'POST') return fail(405, 'Método no disponible.');
     const query = (sql, ...parameters) => DB.prepare(sql).bind(...parameters);
     const now = Date.now();
+    const event = (accountId, type, device = deviceName(request)) =>
+      query('INSERT INTO account_events (account_id, type, device, created_at) VALUES (?, ?, ?, ?)', accountId, type, device, now);
+    async function logEvent(accountId, type) {
+      try {
+        await DB.batch([
+          event(accountId, type),
+          query(`DELETE FROM account_events WHERE account_id = ? AND id < COALESCE(
+            (SELECT id FROM account_events WHERE account_id = ? ORDER BY id DESC LIMIT 1 OFFSET 59), 0)`, accountId, accountId),
+        ]);
+      } catch {
+        // Account changes already committed independently of activity history.
+      }
+    }
     try {
       const raw = await request.text();
       if (raw.length > 24_000) return fail(413, 'Solicitud demasiado grande.');
@@ -78,7 +91,7 @@ export default {
         qr.make();
         return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
       }
-      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
+      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/account/export', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -130,15 +143,65 @@ export default {
           if (!deleted.meta.changes) return fail(410, 'Volvé a iniciar la confirmación.');
           return json({ deleted: true, credentialIds: credentials.results.map(({ id }) => id) });
         }
+        if (route === '/activity') {
+          const { results } = await query(`SELECT type, device, created_at AS createdAt
+            FROM account_events WHERE account_id = ? ORDER BY id DESC LIMIT 40`, account.id).all();
+          return json({ events: results });
+        }
+        if (route === '/account/export') {
+          const [devices, keys, events] = await DB.batch([
+            query(`SELECT device_name AS name, created_at AS createdAt, expires_at AS expiresAt
+              FROM sessions WHERE account_id = ? AND expires_at > ? ORDER BY expires_at DESC`, account.id, now),
+            query(`SELECT label AS name, created_at AS createdAt FROM passkeys WHERE account_id = ? AND rp_id = ?
+              ORDER BY created_at DESC`, account.id, rpID),
+            query(`SELECT type, device, created_at AS createdAt FROM account_events WHERE account_id = ? ORDER BY id DESC LIMIT 60`, account.id),
+          ]);
+          delete account.id;
+          return json({ profile: account, devices: devices.results, passkeys: keys.results, activity: events.results, exportedAt: now });
+        }
+        if (route === '/devices/rename') {
+          const name = typeof body.name === 'string' ? body.name.trim() : '';
+          if (!validToken(body.id) || !name || name.length > 50) return fail(400, 'Elegí un nombre de hasta 50 caracteres.');
+          const result = await query('UPDATE sessions SET device_name = ? WHERE account_id = ? AND device_id = ? AND expires_at > ?',
+            name, account.id, body.id, now).run();
+          if (!result.meta.changes) return fail(404, 'La sesión ya no está disponible.');
+          await logEvent(account.id, 'device_renamed');
+          return json({});
+        }
+        if (route === '/passkeys') {
+          const { results } = await query(`SELECT id, label AS name, created_at AS createdAt
+            FROM passkeys WHERE account_id = ? AND rp_id = ? ORDER BY created_at DESC, id`, account.id, rpID).all();
+          return json({ passkeys: results });
+        }
+        if (route === '/passkeys/rename' || route === '/passkeys/revoke') {
+          if (typeof body.id !== 'string' || !/^[\w-]{16,1400}$/.test(body.id)) return fail(400, 'Clave inválida.');
+          const name = typeof body.name === 'string' ? body.name.trim() : '';
+          if (route === '/passkeys/rename') {
+            if (!name || name.length > 50) return fail(400, 'Elegí un nombre de hasta 50 caracteres.');
+            const result = await query('UPDATE passkeys SET label = ? WHERE account_id = ? AND rp_id = ? AND id = ?',
+              name, account.id, rpID, body.id).run();
+            if (!result.meta.changes) return fail(404, 'La clave ya no está disponible.');
+            await logEvent(account.id, 'passkey_renamed');
+          } else {
+            const result = await query(`DELETE FROM passkeys WHERE account_id = ? AND rp_id = ? AND id = ?
+              AND EXISTS (SELECT 1 FROM passkeys other WHERE other.account_id = ? AND other.rp_id = ? AND other.id <> ?)`,
+            account.id, rpID, body.id, account.id, rpID, body.id).run();
+            if (!result.meta.changes) return fail(409, 'La clave ya no está disponible o es la última de tu cuenta.');
+            await logEvent(account.id, 'passkey_removed');
+          }
+          return json({});
+        }
         if (route === '/profile/update') {
           const profile = profileFrom({ ...body.profile, email: account.email });
           if (!profile) return fail(400, 'Revisá los datos del perfil.');
           await query(`UPDATE accounts SET given_name = ?, family_name = ?, age = ?, sex = ?, nationality = ?, province = ?, locality = ?
             WHERE id = ?`, profile.name, profile.surname, profile.age, profile.sex, profile.country, profile.province, profile.city, account.id).run();
+          await logEvent(account.id, 'profile_updated');
           return json({ updated: true });
         }
         if (route === '/devices/revoke-others') {
           const result = await query('DELETE FROM sessions WHERE account_id = ? AND token_hash <> ?', account.id, key).run();
+          if (result.meta.changes) await logEvent(account.id, 'sessions_closed');
           return json({ closed: result.meta.changes });
         }
         if (route === '/face/credential') {
@@ -172,13 +235,15 @@ export default {
           if (!result.verified) return fail(401, 'No se pudo confirmar la clave.');
           const { id, publicKey, counter } = result.registrationInfo.credential;
           const [created] = await DB.batch([
-            query(`INSERT INTO passkeys (id, account_id, public_key, counter, rp_id)
-              SELECT ?, account_id, ?, ?, ? FROM sessions WHERE token_hash = ? AND passkey_challenge = ?
-                AND expires_at > ? AND passkey_challenge_expires_at > ?`, id, toBase64(publicKey), counter, rpID, key, session.challenge, now, now),
+            query(`INSERT INTO passkeys (id, account_id, public_key, counter, rp_id, label, created_at)
+              SELECT ?, account_id, ?, ?, ?, ?, ? FROM sessions WHERE token_hash = ? AND passkey_challenge = ?
+                AND expires_at > ? AND passkey_challenge_expires_at > ?`, id, toBase64(publicKey), counter, rpID, deviceName(request), now, key, session.challenge, now, now),
             query(`UPDATE sessions SET passkey_challenge = NULL, passkey_challenge_expires_at = NULL
               WHERE token_hash = ? AND passkey_challenge = ?`, key, session.challenge),
           ]);
-          return created.meta.changes ? json({ added: true }) : fail(410, 'Volvé a iniciar la creación de la clave.');
+          if (!created.meta.changes) return fail(410, 'Volvé a iniciar la creación de la clave.');
+          await logEvent(account.id, 'passkey_added');
+          return json({ added: true });
         }
         if (route === '/devices') {
           await query(`UPDATE sessions SET device_id = lower(hex(randomblob(21))) || '0',
@@ -191,7 +256,8 @@ export default {
         }
         if (route === '/devices/revoke') {
           if (!validToken(body.id)) return fail(400, 'Dispositivo inválido.');
-          await query('DELETE FROM sessions WHERE account_id = ? AND device_id = ? AND token_hash <> ?', account.id, body.id, key).run();
+          const result = await query('DELETE FROM sessions WHERE account_id = ? AND device_id = ? AND token_hash <> ?', account.id, body.id, key).run();
+          if (result.meta.changes) await logEvent(account.id, 'session_closed');
           return json({});
         }
         delete account.id;
@@ -269,9 +335,9 @@ export default {
         commands.push(query(`INSERT INTO accounts (id, email, given_name, family_name, age, sex, nationality, province, locality, created_at)
           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM qr_requests WHERE id = ? AND consumed_at IS NULL AND expires_at > ?`,
         accountId, data.email, data.name, data.surname, data.age, data.sex, data.country, data.province, data.city, now, handoff.id, now));
-        commands.push(query(`INSERT INTO passkeys (id, account_id, public_key, counter, rp_id)
-          SELECT ?, ?, ?, ?, ? FROM qr_requests WHERE id = ? AND consumed_at IS NULL AND expires_at > ?`,
-        passkey.id, accountId, passkey.key, passkey.counter, new URL(handoff.phone_origin).hostname, handoff.id, now));
+        commands.push(query(`INSERT INTO passkeys (id, account_id, public_key, counter, rp_id, label, created_at)
+          SELECT ?, ?, ?, ?, ?, ?, ? FROM qr_requests WHERE id = ? AND consumed_at IS NULL AND expires_at > ?`,
+        passkey.id, accountId, passkey.key, passkey.counter, new URL(handoff.phone_origin).hostname, 'Clave de registro', now, handoff.id, now));
       }
       commands.push(query(`UPDATE qr_requests SET consumed_at = ?, redeem_hash = ?, pending_credential = NULL
         WHERE id = ? AND consumed_at IS NULL AND approved_at IS NOT NULL AND expires_at > ?`, now, sessionHash, handoff.id, now));
@@ -280,6 +346,7 @@ export default {
       sessionHash, accountId, now + 7 * 86_400_000, token(), deviceName(request), now, handoff.id, sessionHash));
       const result = await DB.batch(commands);
       if (result.at(-1).meta.changes !== 1) return fail(410, 'El código venció o ya fue usado.');
+      await logEvent(accountId, registration ? 'account_created' : 'signed_in');
       const account = await query('SELECT given_name AS name, family_name AS surname, email FROM accounts WHERE id = ?', accountId).first();
       return json({ session, account });
     } catch (error) {
