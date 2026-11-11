@@ -91,7 +91,7 @@ export default {
         qr.make();
         return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
       }
-      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
+      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/folders/save', '/room/folders/delete', '/room/pages/get', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -142,6 +142,64 @@ export default {
           ]);
           if (!deleted.meta.changes) return fail(410, 'Volvé a iniciar la confirmación.');
           return json({ deleted: true, credentialIds: credentials.results.map(({ id }) => id) });
+        }
+        if (route === '/room/list') {
+          const [folders, pages] = await DB.batch([
+            query('SELECT id, name FROM room_folders WHERE account_id = ? ORDER BY name COLLATE NOCASE, id', account.id),
+            query(`SELECT id, folder_id AS folderId, title, updated_at AS updatedAt
+              FROM room_pages WHERE account_id = ? ORDER BY updated_at DESC, id`, account.id),
+          ]);
+          return json({ folders: folders.results, pages: pages.results });
+        }
+        if (route === '/room/folders/save') {
+          const name = typeof body.name === 'string' ? body.name.trim() : '';
+          if (!name || name.length > 70) return fail(400, 'Ingresá un nombre de hasta 70 caracteres.');
+          if (body.id != null && !validToken(body.id)) return fail(400, 'Carpeta inválida.');
+          const id = body.id ?? token();
+          const saved = body.id
+            ? await query('UPDATE room_folders SET name = ? WHERE account_id = ? AND id = ?', name, account.id, id).run()
+            : await query(`INSERT INTO room_folders (account_id, id, name)
+                SELECT ?, ?, ? WHERE (SELECT COUNT(*) FROM room_folders WHERE account_id = ?) < 100`,
+              account.id, id, name, account.id).run();
+          if (!saved.meta.changes) return fail(409, body.id ? 'La carpeta ya no está disponible.' : 'Alcanzaste el límite de 100 carpetas.');
+          return json({ id });
+        }
+        if (route === '/room/folders/delete') {
+          if (!validToken(body.id)) return fail(400, 'Carpeta inválida.');
+          await query('DELETE FROM room_folders WHERE account_id = ? AND id = ?', account.id, body.id).run();
+          return json({});
+        }
+        if (route === '/room/pages/get') {
+          if (!validToken(body.id)) return fail(400, 'Página inválida.');
+          const page = await query(`SELECT id, folder_id AS folderId, title, content, revision, updated_at AS updatedAt
+            FROM room_pages WHERE account_id = ? AND id = ?`, account.id, body.id).first();
+          return page ? json(page) : fail(404, 'La página ya no está disponible.');
+        }
+        if (route === '/room/pages/save') {
+          const title = typeof body.title === 'string' ? body.title.trim() : '';
+          if (!title || title.length > 120 || typeof body.content !== 'string' || body.content.length > 10000) {
+            return fail(400, 'Usá un título de hasta 120 caracteres y un texto de hasta 10.000 caracteres.');
+          }
+          if (body.id != null) {
+            if (!validToken(body.id) || !Number.isSafeInteger(body.revision) || body.revision < 1) return fail(400, 'Página inválida.');
+            const saved = await query(`UPDATE room_pages SET title = ?, content = ?, revision = revision + 1, updated_at = ?
+              WHERE account_id = ? AND id = ? AND revision = ?`, title, body.content, now, account.id, body.id, body.revision).run();
+            if (!saved.meta.changes) return fail(409, 'La página cambió en otro dispositivo. Copiá tu texto antes de volver a abrirla.');
+            return json({ id: body.id, revision: body.revision + 1, updatedAt: now });
+          }
+          if (!validToken(body.folderId)) return fail(400, 'Elegí una carpeta.');
+          const id = token();
+          const saved = await query(`INSERT INTO room_pages (account_id, id, folder_id, title, content, updated_at)
+            SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM room_folders WHERE account_id = ? AND id = ?)
+              AND (SELECT COUNT(*) FROM room_pages WHERE account_id = ?) < 300`,
+          account.id, id, body.folderId, title, body.content, now, account.id, body.folderId, account.id).run();
+          if (!saved.meta.changes) return fail(409, 'La carpeta ya no está disponible o alcanzaste el límite de 300 páginas.');
+          return json({ id, revision: 1, updatedAt: now });
+        }
+        if (route === '/room/pages/delete') {
+          if (!validToken(body.id)) return fail(400, 'Página inválida.');
+          await query('DELETE FROM room_pages WHERE account_id = ? AND id = ?', account.id, body.id).run();
+          return json({});
         }
         if (route === '/activity') {
           const { results } = await query(`SELECT type, device, created_at AS createdAt

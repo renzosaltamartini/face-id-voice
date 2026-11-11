@@ -21,6 +21,14 @@
     {
       "source": "/face-id-voice/panel",
       "destination": "/index.html"
+    },
+    {
+      "source": "/panel/room",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/face-id-voice/panel/room",
+      "destination": "/index.html"
     }
   ],
   "headers": [
