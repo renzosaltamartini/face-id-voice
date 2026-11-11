@@ -91,7 +91,7 @@ export default {
         qr.make();
         return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
       }
-      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/account/export', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
+      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -148,17 +148,6 @@ export default {
             FROM account_events WHERE account_id = ? ORDER BY id DESC LIMIT 40`, account.id).all();
           return json({ events: results });
         }
-        if (route === '/account/export') {
-          const [devices, keys, events] = await DB.batch([
-            query(`SELECT device_name AS name, created_at AS createdAt, expires_at AS expiresAt
-              FROM sessions WHERE account_id = ? AND expires_at > ? ORDER BY expires_at DESC`, account.id, now),
-            query(`SELECT label AS name, created_at AS createdAt FROM passkeys WHERE account_id = ? AND rp_id = ?
-              ORDER BY created_at DESC`, account.id, rpID),
-            query(`SELECT type, device, created_at AS createdAt FROM account_events WHERE account_id = ? ORDER BY id DESC LIMIT 60`, account.id),
-          ]);
-          delete account.id;
-          return json({ profile: account, devices: devices.results, passkeys: keys.results, activity: events.results, exportedAt: now });
-        }
         if (route === '/devices/rename') {
           const name = typeof body.name === 'string' ? body.name.trim() : '';
           if (!validToken(body.id) || !name || name.length > 50) return fail(400, 'Elegí un nombre de hasta 50 caracteres.');
@@ -210,9 +199,9 @@ export default {
           return credential ? json({ id: credential.id, name: account.name }) : fail(409, 'Guardá una clave de acceso antes de registrar tu rostro.');
         }
         if (route === '/passkey/options') {
-          if (origin !== NOVA_WEB_ORIGIN) return fail(403, 'Abrí la nueva dirección de Nova.');
+          if (origin !== NOVA_WEB_ORIGIN) return fail(403, 'Abrí la nueva dirección de Renx.');
           const options = await generateRegistrationOptions({
-            rpName: 'Nova', rpID, userName: account.email, userID: encoder.encode(account.id),
+            rpName: 'Renx', rpID, userName: account.email, userID: encoder.encode(account.id),
             attestationType: 'none', supportedAlgorithmIDs: [-7, -257],
             authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
           });
@@ -221,7 +210,7 @@ export default {
           return json(options);
         }
         if (route === '/passkey/register') {
-          if (origin !== NOVA_WEB_ORIGIN) return fail(403, 'Abrí la nueva dirección de Nova.');
+          if (origin !== NOVA_WEB_ORIGIN) return fail(403, 'Abrí la nueva dirección de Renx.');
           const session = await query(`SELECT passkey_challenge AS challenge FROM sessions
             WHERE token_hash = ? AND expires_at > ? AND passkey_challenge_expires_at > ?`, key, now, now).first();
           if (!session?.challenge) return fail(410, 'Volvé a iniciar la creación de la clave.');
@@ -280,7 +269,7 @@ export default {
         if (handoff.approved_at) return fail(409, 'Ya se aprobó esta solicitud.');
         const options = registration
           ? await generateRegistrationOptions({
-            rpName: 'Nova', rpID, userName: 'Cuenta Nova', userID: encoder.encode(handoff.id),
+            rpName: 'Renx', rpID, userName: 'Cuenta Renx', userID: encoder.encode(handoff.id),
             attestationType: 'none', supportedAlgorithmIDs: [-7, -257],
             authenticatorSelection: { authenticatorAttachment: 'platform', residentKey: 'required', userVerification: 'required' },
           })
@@ -305,7 +294,7 @@ export default {
             pending = JSON.stringify({ id, key: toBase64(publicKey), counter });
           } else {
             const passkey = await query('SELECT * FROM passkeys WHERE id = ? AND rp_id = ?', body.response?.id ?? '', rpID).first();
-            if (!passkey) return fail(401, 'La clave de acceso no pertenece a una cuenta de Nova.');
+            if (!passkey) return fail(401, 'La clave de acceso no pertenece a una cuenta de Renx.');
             const result = await verifyAuthenticationResponse({
               ...expected, response: body.response,
               credential: { id: passkey.id, publicKey: fromBase64(passkey.public_key), counter: passkey.counter },
