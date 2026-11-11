@@ -44,64 +44,134 @@
 #enableAccess{margin-top:16px}
 
 
-#dashboard{min-height:100svh;background:#f1f4fb;color:#172544}
-.nova-dashboard{max-width:1480px;min-height:100svh;margin:auto;display:grid;grid-template-columns:228px minmax(0,1fr)}
-.panel-sidebar{background:#121c36;color:#e6edff;display:flex;flex-direction:column;gap:32px;padding:30px 20px}
-.panel-sidebar .logo{padding:0 8px;color:white}
-.panel-sidebar .logo-mark{background:#4268ff;color:white}
-.panel-nav{display:grid;gap:6px}
-.panel-nav button{display:flex;align-items:center;gap:11px;border:0;border-radius:11px;padding:11px 12px;background:transparent;color:#b9c7e7;text-align:left;font-size:13px;font-weight:600}
-.panel-nav button:hover{background:#202e50;color:white}
-.panel-nav button[aria-pressed="true"]{background:#263d76;color:#fff}
-.panel-nav button span{width:19px;flex:none;text-align:center;font-size:16px;color:#aabaff}
-.panel-sidebar #logoutButton{margin-top:auto;align-self:stretch;border:1px solid #43516e;background:transparent;color:#e5edff;text-align:center}
-.panel-main{min-width:0;padding:clamp(18px,4vw,48px);max-width:1140px;width:100%;margin:0 auto}
-.panel-header{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:24px}
-.panel-header h1{font-size:clamp(25px,4vw,36px);margin:0;letter-spacing:-.045em}
-.panel-header .avatar{margin:0;width:45px;height:45px;border-radius:13px;background:#e2eaff;color:#214abf;flex:none}
-.panel-hero{position:relative;overflow:hidden;border-radius:22px;padding:clamp(22px,4.5vw,44px);margin-bottom:18px;background:linear-gradient(115deg,#1e3da6,#453bd4 75%,#5a4bd9);color:white}
-.panel-hero h2{font-size:clamp(26px,5vw,44px);line-height:1.12;letter-spacing:-.05em;margin:0 0 8px;overflow-wrap:anywhere}
-.panel-hero p{margin:0 0 20px;color:#e5eaff;overflow-wrap:anywhere}
-.panel-hero .secondary{background:white;color:#24388d;border:0}
-.panel-actions{display:flex;flex-wrap:wrap;gap:8px}
-.panel-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
-.panel-metric,.panel-card{min-width:0;background:white;border:1px solid #dce5f4;border-radius:16px;padding:18px;box-shadow:0 8px 20px #132b5d08}
-.panel-metric{display:grid;gap:4px}
-.panel-metric span{font-size:12px;color:#536688}
-.panel-metric strong{font-family:var(--font-heading);font-size:clamp(17px,2.8vw,27px);letter-spacing:-.03em}
-.panel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
-.panel-card h2,.panel-card h3{font-size:19px;margin:0 0 8px;letter-spacing:-.025em}
-.panel-card p,.panel-card dd,.panel-card small{color:#536688;line-height:1.55;overflow-wrap:anywhere}
-.panel-card p{margin:0 0 13px}
-.panel-card button{margin-top:5px}
-.panel-section-header{margin:0 0 16px}
-.panel-section-header h2{margin:0 0 4px;font-size:24px;letter-spacing:-.035em}
-.panel-section-header p{margin:0;color:#536688;font-size:13px}
-#panelMessage{background:#e6edff;border:1px solid #cdd9fd;border-radius:12px;padding:10px 14px;margin:0 0 14px}
-.device-list{list-style:none;margin:12px 0 0;padding:0}
-.device-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #e3e9f1;padding:12px 0}
-.device-list small{display:block}
-.device-current{display:inline-block;margin-left:7px;padding:3px 7px;border-radius:8px;background:#dff7ee;color:#176545;font-size:10px}
-.profile-details,.panel-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0 0 12px}
-.profile-details dt,.panel-edit-grid label{font-size:12px;color:#4a5f81}
-.profile-details dd{margin:3px 0 0}
+
+#dashboard{
+  --panel-bg:#080d17;--panel-surface:#101827;--panel-line:#28344a;--panel-text:#f2f5fc;
+  --panel-muted:#a6b4cb;--panel-accent:#aabaff;--panel-live:#a2efd0;
+  min-height:100svh;color:var(--panel-text);
+  background:radial-gradient(ellipse at 50% 0%,#182440 0%,transparent 44rem),var(--panel-bg)
+}
+.nova-dashboard{min-height:100svh}
+.panel-sidebar{
+  display:grid;grid-template-columns:minmax(148px,1fr) auto minmax(148px,1fr);align-items:center;
+  gap:18px;padding:13px clamp(16px,4vw,48px);border-bottom:1px solid var(--panel-line);
+  background:#0a101be8
+}
+.panel-sidebar .logo{color:var(--panel-text);width:max-content}
+.panel-sidebar .logo-mark{width:31px;height:31px;border-radius:10px;background:#9eb1ff;color:#101939}
+.panel-nav{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;
+  padding:4px;border-radius:999px;border:1px solid #2b3852;background:#111a2b
+}
+.panel-nav button{
+  display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:32px;
+  border:1px solid transparent;border-radius:999px;padding:4px 10px;
+  background:transparent;color:var(--panel-muted);font-size:11px;font-weight:600;white-space:nowrap
+}
+.panel-nav button span{font-size:14px;line-height:1;color:#91a4e9}
+.panel-nav button:hover{color:white;background:#1b2840}
+.panel-nav button[aria-pressed="true"]{border-color:#4d5e8a;background:#283658;color:#fff}
+.panel-nav button[aria-pressed="true"] span{color:#d8e1ff}
+.panel-account{justify-self:end;display:flex;align-items:center;gap:8px}
+.panel-account .avatar{
+  width:29px;height:29px;margin:0;border:1px solid #485984;border-radius:50%;
+  background:#263651;color:#dbe4ff;font:700 13px var(--font-heading);flex:none
+}
+#dashboard .primary,#dashboard .secondary{
+  min-height:33px;padding:6px 12px;border:1px solid #3d4a67;border-radius:999px;
+  font-size:11px;font-weight:600;line-height:1.4;white-space:normal;
+  background:#19243a;color:#e5ebfc;box-shadow:none
+}
+#dashboard .primary{background:#adbdff;border-color:#adbdff;color:#111a36}
+#dashboard .secondary:hover{background:#253453;border-color:#6d7ca7}
+#dashboard .primary:hover{background:#c6d1ff;border-color:#c6d1ff}
+#dashboard button:disabled{opacity:.55;cursor:wait}
+.panel-main{max-width:1160px;width:100%;margin:0 auto;padding:clamp(18px,4vw,44px) clamp(14px,4vw,42px) 46px}
+.panel-header{text-align:center;margin:0 0 18px}
+.panel-header h1{font-size:clamp(24px,3.8vw,35px);letter-spacing:-.045em;margin:0}
+.panel-hero{
+  display:grid;justify-items:center;align-content:center;text-align:center;min-height:226px;
+  padding:22px 16px;margin-bottom:14px;border:1px solid #3b4b70;border-radius:21px;
+  background:
+    linear-gradient(90deg,#9bb2ff0c 1px,transparent 1px) center / 25px 25px,
+    linear-gradient(#9bb2ff0c 1px,transparent 1px) center / 25px 25px,
+    radial-gradient(ellipse at 50% 20%,#2d3f72 0%,#171f38 55%,#101827 100%);
+  box-shadow:inset 0 1px #ffffff14,0 18px 45px #05091370
+}
+.panel-hero h2{font-size:clamp(28px,5vw,49px);line-height:1.12;letter-spacing:-.055em;margin:10px 0 5px;overflow-wrap:anywhere}
+.panel-hero p{margin:0 0 16px;color:#bbc8e8;font-size:13px;overflow-wrap:anywhere;max-width:100%}
+.panel-pill{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;width:max-content;max-width:100%;
+  min-height:24px;padding:3px 8px;border-radius:999px;border:1px solid #364462;
+  background:#1b2740;color:#cbd7f5;font-size:10px;font-weight:600;line-height:1.25
+}
+.panel-pill[data-tone="live"]{border-color:#336859;background:#15372f;color:var(--panel-live)}
+.panel-pill[data-tone="live"]::before{content:'';width:6px;height:6px;flex:none;border-radius:50%;background:#7ee7bd}
+.panel-actions{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:7px}
+.panel-metrics,.panel-grid{display:grid;gap:12px;align-items:stretch}
+.panel-metrics{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px}
+.panel-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+#panel-security .panel-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.panel-metric,.panel-card{
+  min-width:0;background:var(--panel-surface);border:1px solid var(--panel-line);border-radius:15px;
+  box-shadow:inset 0 1px #ffffff06,0 10px 23px #05091335;padding:17px
+}
+.panel-metric{display:grid;justify-items:center;align-content:center;gap:8px;min-height:100px;text-align:center}
+.panel-metric strong{font-family:var(--font-heading);font-size:clamp(16px,2.6vw,26px);line-height:1.15;letter-spacing:-.035em;overflow-wrap:anywhere}
+.panel-grid .panel-card{
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  text-align:center;min-height:155px
+}
+.panel-grid .panel-card>button{margin-top:auto}
+.panel-card h2,.panel-card h3{font-size:18px;margin:0 0 7px;letter-spacing:-.025em}
+.panel-card p,.panel-card dd,.panel-card small{color:var(--panel-muted);line-height:1.55;overflow-wrap:anywhere}
+.panel-card p{margin:0 0 13px;font-size:12px}
+.panel-section-header{text-align:center;margin:0 0 16px}
+.panel-section-header h2{margin:0 0 4px;font-size:21px;letter-spacing:-.035em}
+.panel-section-header p{margin:0;color:var(--panel-muted);font-size:12px}
+#panelMessage{
+  max-width:720px;margin:0 auto 14px;padding:9px 13px;border:1px solid #435581;
+  border-radius:12px;background:#1c2b4c;color:#e5edff;text-align:center
+}
+.device-list{list-style:none;margin:13px 0 0;padding:0}
+.device-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--panel-line);padding:11px 0}
+.device-list li:last-child{padding-bottom:0}
+.device-list strong{font-size:13px}
+.device-list small{display:block;font-size:11px;margin-top:4px}
+.device-current{margin-left:7px}
+.profile-details,.panel-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 13px}
+.profile-details>div{padding:10px 12px;border:1px solid var(--panel-line);border-radius:12px;background:#0c1422}
+.profile-details dt,.panel-edit-grid label{font-size:11px;color:var(--panel-muted)}
+.profile-details dd{margin:4px 0 0;color:var(--panel-text);font-size:13px}
 .panel-edit-grid label{display:grid;gap:5px}
-.panel-edit-grid input,.panel-edit-grid select{width:100%;min-width:0;border:1px solid #cdd9ef;border-radius:9px;padding:9px;background:#fff;color:#172544;font:inherit}
+.panel-edit-grid input,.panel-edit-grid select{
+  width:100%;min-width:0;border:1px solid #3b4a68;border-radius:10px;
+  padding:8px 10px;background:#0c1422;color:var(--panel-text);font:inherit;color-scheme:dark
+}
 .panel-edit-grid .full{grid-column:1/-1}
-.panel-nav button:focus-visible,.panel-main button:focus-visible,.panel-main input:focus-visible,.panel-main select:focus-visible{outline:3px solid #5579ff;outline-offset:2px}
-@media(max-width:800px){
-  .nova-dashboard{grid-template-columns:1fr}
-  .panel-sidebar{display:grid;grid-template-columns:1fr auto;gap:12px;padding:14px 16px}
-  .panel-sidebar #logoutButton{margin:0;grid-column:2;grid-row:1}
-  .panel-nav{grid-column:1/-1;grid-template-columns:repeat(4,minmax(0,1fr))}
-  .panel-nav button{justify-content:center;padding:9px 4px;gap:4px;font-size:11px}
+.panel-nav button:focus-visible,.panel-main button:focus-visible,.panel-main input:focus-visible,.panel-main select:focus-visible,.panel-account button:focus-visible{
+  outline:2px solid #aabaff;outline-offset:2px
+}
+@media(max-width:790px){
+  .panel-sidebar{grid-template-columns:1fr 1fr;gap:9px;padding:10px 14px}
+  .panel-nav{grid-column:1/-1;grid-row:2;justify-self:center;width:min(100%,540px)}
+  .panel-account{grid-column:2;grid-row:1}
+  #panel-security .panel-grid{grid-template-columns:1fr}
+  #panel-security .panel-grid .panel-card{min-height:0}
 }
 @media(max-width:520px){
-  .panel-grid{grid-template-columns:1fr}
-  .panel-metrics{gap:6px}
-  .panel-metric{padding:10px}
-  .panel-metric span{font-size:10px}
+  .panel-nav button{padding:4px 3px;font-size:10px}
   .panel-nav button span{display:none}
+  .panel-hero{min-height:190px;border-radius:16px}
+  .panel-metrics,.panel-grid{gap:7px}
+  .panel-metric,.panel-card{padding:11px 8px}
+  .panel-metric{min-height:76px}
+  .panel-metric .panel-pill{font-size:9px;padding:3px 5px}
+  .panel-grid .panel-card{min-height:140px}
+  .panel-card h3{font-size:15px}
+  .panel-card p{font-size:11px}
+  .profile-details,.panel-edit-grid{gap:7px}
+  .profile-details>div{padding:8px}
   .device-list li{align-items:flex-start;flex-wrap:wrap}
 }
 #faceRecognitionVideo{width:100%;max-width:270px;aspect-ratio:1;object-fit:cover;transform:scaleX(-1);border-radius:16px;background:#17243a}
@@ -167,20 +237,21 @@ h1,h2,h3,.logo,.profile-step legend{font-family:var(--font-heading);font-weight:
       <button type="button" data-panel="security" aria-pressed="false"><span aria-hidden="true">◇</span>Seguridad</button>
       <button type="button" data-panel="profile" aria-pressed="false"><span aria-hidden="true">○</span>Mi perfil</button>
     </nav>
-    <button class="secondary" id="logoutButton" type="button">Cerrar sesión</button>
+    <div class="panel-account"><div class="avatar" id="panelInitial" aria-hidden="true"></div><button class="secondary" id="logoutButton" type="button">Cerrar sesión</button></div>
   </aside>
   <main class="panel-main">
-    <header class="panel-header"><h1 id="panelPageTitle">Inicio</h1><div class="avatar" id="panelInitial" aria-hidden="true"></div></header>
+    <header class="panel-header"><h1 id="panelPageTitle">Inicio</h1></header>
     <p class="nova-message" id="panelMessage" role="status" hidden></p>
     <section id="panel-overview">
       <div class="panel-hero">
+        <span class="panel-pill" data-tone="live">Sesión activa</span>
         <h2>Hola, <span id="panelName"></span></h2><p id="panelEmail"></p>
         <div class="panel-actions"><button class="secondary" id="enableAccess" type="button" hidden>Habilitar acceso por QR</button><button class="secondary" type="button" data-open-panel="devices">Ver dispositivos</button></div>
       </div>
       <div class="panel-metrics">
-        <div class="panel-metric"><span>Sesiones activas</span><strong id="sessionCount">—</strong></div>
-        <div class="panel-metric"><span>Claves de acceso</span><strong id="passkeyCount">—</strong></div>
-        <div class="panel-metric"><span>Cuenta creada</span><strong id="memberSince">—</strong></div>
+        <div class="panel-metric"><span class="panel-pill">Sesiones activas</span><strong id="sessionCount">—</strong></div>
+        <div class="panel-metric"><span class="panel-pill">Claves de acceso</span><strong id="passkeyCount">—</strong></div>
+        <div class="panel-metric"><span class="panel-pill">Cuenta creada</span><strong id="memberSince">—</strong></div>
       </div>
       <div class="panel-grid">
         <article class="panel-card"><h3>Protegé tu acceso</h3><p>Administrá las claves de acceso y la referencia facial de este navegador.</p><button class="secondary" type="button" data-open-panel="security">Ir a seguridad</button></article>
@@ -548,7 +619,7 @@ async function loadDevices(){
       info.append(name);
       if(device.current){
         const current=document.createElement('span');
-        current.className='device-current';current.textContent='Este dispositivo';
+        current.className='panel-pill device-current';current.dataset.tone='live';current.textContent='Actual';
         info.append(current);
       }
       date.textContent=(device.createdAt?'Ingresó el '+new Date(device.createdAt).toLocaleString('es-AR')+' · ':'')+
