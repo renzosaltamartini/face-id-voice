@@ -78,7 +78,7 @@ export default {
         qr.make();
         return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
       }
-      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/profile/update', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
+      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -91,6 +91,45 @@ export default {
           (SELECT COUNT(*) FROM passkeys p WHERE p.account_id = a.id AND p.rp_id = ?) AS passkeyCount
           FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`, now, rpID, key, now).first();
         if (!account) return fail(401, 'Volvé a iniciar sesión.');
+        if (route === '/account/delete/options') {
+          const { results } = await query('SELECT id FROM passkeys WHERE account_id = ? AND rp_id = ?', account.id, rpID).all();
+          if (!results.length) return fail(409, 'Agregá una clave de acceso para confirmar el borrado.');
+          const options = await generateAuthenticationOptions({
+            rpID, userVerification: 'required', allowCredentials: results.map(({ id }) => ({ id })),
+          });
+          await query(`UPDATE sessions SET passkey_challenge = ?, passkey_challenge_expires_at = ?
+            WHERE token_hash = ? AND expires_at > ?`, 'delete:' + options.challenge, now + 5 * 60_000, key, now).run();
+          return json(options);
+        }
+        if (route === '/account/delete') {
+          const session = await query(`SELECT passkey_challenge AS challenge FROM sessions
+            WHERE token_hash = ? AND expires_at > ? AND passkey_challenge_expires_at > ?`, key, now, now).first();
+          if (!session?.challenge?.startsWith('delete:')) return fail(410, 'Volvé a iniciar la confirmación.');
+          const passkey = await query('SELECT * FROM passkeys WHERE id = ? AND account_id = ? AND rp_id = ?',
+            body.response?.id ?? '', account.id, rpID).first();
+          if (!passkey) return fail(401, 'Usá una clave de acceso de esta cuenta.');
+          try {
+            const result = await verifyAuthenticationResponse({
+              response: body.response, expectedChallenge: session.challenge.slice(7),
+              expectedOrigin: origin, expectedRPID: rpID, requireUserVerification: true,
+              credential: { id: passkey.id, publicKey: fromBase64(passkey.public_key), counter: passkey.counter },
+            });
+            if (!result.verified) return fail(401, 'No se confirmó el borrado.');
+          } catch {
+            return fail(401, 'No se confirmó el borrado con tu clave de acceso.');
+          }
+          const activeChallenge = `EXISTS (SELECT 1 FROM sessions
+            WHERE account_id = ? AND token_hash = ? AND passkey_challenge = ?
+              AND expires_at > ? AND passkey_challenge_expires_at > ?)`;
+          const proof = [account.id, key, session.challenge, now, now];
+          const [credentials, , deleted] = await DB.batch([
+            query('SELECT id FROM passkeys WHERE account_id = ?', account.id),
+            query(`DELETE FROM qr_requests WHERE (account_id = ? OR id = ?) AND ${activeChallenge}`, account.id, account.id, ...proof),
+            query(`DELETE FROM accounts WHERE id = ? AND ${activeChallenge}`, account.id, ...proof),
+          ]);
+          if (!deleted.meta.changes) return fail(410, 'Volvé a iniciar la confirmación.');
+          return json({ deleted: true, credentialIds: credentials.results.map(({ id }) => id) });
+        }
         if (route === '/profile/update') {
           const profile = profileFrom({ ...body.profile, email: account.email });
           if (!profile) return fail(400, 'Revisá los datos del perfil.');

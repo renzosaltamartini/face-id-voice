@@ -267,6 +267,21 @@ body{background:var(--site-bg)}
   .home-methods{justify-content:center}
   .home-art{width:min(100%,390px);justify-self:center;aspect-ratio:1.4}
 }
+
+.account-removal{margin-top:12px}
+#dashboard .danger-button{border-color:#89534e;background:#3d2425;color:#ffc8c4}
+#dashboard .danger-button:hover{border-color:#bd746f;background:#50302f}
+#deleteAccountDialog{
+  width:min(440px,calc(100% - 28px));margin:auto;padding:20px;
+  border:1px solid #505861;border-radius:16px;background:var(--panel-surface);color:var(--panel-text);
+  box-shadow:0 20px 60px #0008
+}
+#deleteAccountDialog::backdrop{background:#080a0bd9}
+#deleteAccountDialog h2{margin:0 0 8px}
+#deleteAccountDialog p,#deleteAccountDialog label{font-size:12px;line-height:1.55;color:var(--panel-muted)}
+#deleteAccountDialog input{display:block;width:100%;margin:6px 0 14px;padding:8px 10px;border:1px solid #46535d;border-radius:9px;background:#131619;color:var(--panel-text)}
+#deleteAccountDialog #deleteAccountError{color:#ffc8c4}
+#homeStatus{margin:12px 0 0}
 </style><script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script></head><body>
 <section class="screen" id="home">
@@ -277,6 +292,7 @@ body{background:var(--site-bg)}
         <h1>Tu espacio<br>en <span>Nova.</span></h1>
         <p>Ingresá a tu cuenta o registrate para gestionar tus dispositivos y métodos de acceso.</p>
         <button class="primary" id="loginButton" type="button">Ingresar o registrarme <span aria-hidden="true">→</span></button>
+        <p class="nova-message" id="homeStatus" role="status" hidden></p>
         <div class="home-methods"><span class="panel-pill">Clave de acceso</span><span class="panel-pill">Acceso por QR</span></div>
       </div>
       <div class="home-art" aria-hidden="true"><div class="art-card"><div class="art-face"></div></div></div>
@@ -352,10 +368,6 @@ body{background:var(--site-bg)}
         <div class="panel-metric"><span class="panel-pill">Claves de acceso</span><strong id="passkeyCount">—</strong></div>
         <div class="panel-metric"><span class="panel-pill">Cuenta creada</span><strong id="memberSince">—</strong></div>
       </div>
-      <div class="panel-grid">
-        <article class="panel-card"><h3>Protegé tu acceso</h3><p>Administrá las claves de acceso y la referencia facial de este navegador.</p><button class="secondary" type="button" data-open-panel="security">Ir a seguridad</button></article>
-        <article class="panel-card"><h3>Mantené tus datos al día</h3><p>Consultá y actualizá los datos de tu perfil.</p><button class="secondary" type="button" data-open-panel="profile">Ver mi perfil</button></article>
-      </div>
     </section>
     <section id="panel-devices" hidden>
       <header class="panel-section-header"><h2>Sesiones abiertas</h2><p>Revisá dónde está abierta tu cuenta y cerrá accesos que ya no uses.</p></header>
@@ -389,9 +401,27 @@ body{background:var(--site-bg)}
           <div class="panel-actions"><button class="primary" id="saveProfile" type="submit">Guardar cambios</button><button class="secondary" id="cancelProfileEdit" type="button">Cancelar</button></div>
         </form>
       </article>
+      <article class="panel-card account-removal">
+        <h3>Borrar cuenta</h3>
+        <p>Eliminá tus datos de Nova y cerrá tus sesiones en todos los dispositivos.</p>
+        <button class="secondary danger-button" id="openDeleteAccount" type="button">Borrar cuenta</button>
+      </article>
     </section>
   </main>
 </div>
+<dialog id="deleteAccountDialog" aria-labelledby="deleteAccountTitle">
+  <form id="deleteAccountForm">
+    <h2 id="deleteAccountTitle">Borrar tu cuenta</h2>
+    <p>Se eliminarán tus datos, tus claves de acceso de Nova y todas tus sesiones. Esta acción es definitiva.</p>
+    <label for="deleteAccountPhrase">Escribí <strong>BORRAR</strong> para continuar</label>
+    <input id="deleteAccountPhrase" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+    <p id="deleteAccountError" role="alert" hidden></p>
+    <div class="panel-actions">
+      <button class="secondary" id="cancelDeleteAccount" type="button">Cancelar</button>
+      <button class="secondary danger-button" id="confirmDeleteAccount" type="submit" disabled>Borrar definitivamente</button>
+    </div>
+  </form>
+</dialog>
 </section><script>
 
 const $=id=>document.getElementById(id),video=$('video'),overlay=$('overlay'),ctx=overlay.getContext('2d');let landmarker,stream,muted=false,working=false,lastResult=null;const OLD='face-voice-demo-template-v1';let starting=false;try{localStorage.removeItem('identity-credential-v1');localStorage.removeItem('identity-credential-v2');localStorage.removeItem(OLD)}catch(e){}
@@ -676,6 +706,48 @@ async function refreshAccount(){
   if(token===sessionToken)renderAccount(account);
   return account;
 }
+const deleteDialog=$('deleteAccountDialog');
+const deletePhrase=$('deleteAccountPhrase');
+const confirmDelete=$('confirmDeleteAccount');
+const cancelDelete=$('cancelDeleteAccount');
+function deleteAccountError(message=''){
+  $('deleteAccountError').textContent=message;
+  $('deleteAccountError').hidden=!message;
+}
+$('openDeleteAccount').onclick=()=>{
+  deletePhrase.value='';
+  confirmDelete.disabled=true;
+  deleteAccountError();
+  deleteDialog.showModal();
+  deletePhrase.focus();
+};
+deletePhrase.oninput=()=>{confirmDelete.disabled=deletePhrase.value.trim().toUpperCase()!=='BORRAR'};
+cancelDelete.onclick=()=>deleteDialog.close();
+deleteDialog.addEventListener('cancel',event=>{if(cancelDelete.disabled)event.preventDefault()});
+$('deleteAccountForm').onsubmit=async event=>{
+  event.preventDefault();
+  if(deletePhrase.value.trim().toUpperCase()!=='BORRAR'||cancelDelete.disabled)return;
+  const token=sessionToken;
+  confirmDelete.disabled=cancelDelete.disabled=deletePhrase.disabled=true;
+  deleteAccountError();
+  try{
+    if(!window.SimpleWebAuthnBrowser)throw Error('No se pudo cargar el servicio de claves de acceso.');
+    const optionsJSON=await api('/account/delete/options',{token});
+    const response=await window.SimpleWebAuthnBrowser.startAuthentication({optionsJSON});
+    const result=await api('/account/delete',{token,response});
+    const ids=new Set(result.credentialIds);
+    let clearedFace=true;
+    try{
+      localStorage.setItem(faceStorageKey,JSON.stringify(savedFaces().filter(face=>!ids.has(face.id))));
+    }catch{clearedFace=false}
+    deleteDialog.close();
+    sessionToken=null;
+    $('logoutButton').click();
+    $('homeStatus').textContent=clearedFace?'Tu cuenta fue eliminada.':'Tu cuenta fue eliminada. El navegador no pudo borrar su referencia facial local.';
+    $('homeStatus').hidden=false;
+  }catch(error){deleteAccountError(error.message||'No se pudo borrar tu cuenta.')}
+  finally{confirmDelete.disabled=cancelDelete.disabled=deletePhrase.disabled=false}
+};
 function showProfileEditor(editing){
   $('profileRead').hidden=editing;
   $('editProfileForm').hidden=!editing;
