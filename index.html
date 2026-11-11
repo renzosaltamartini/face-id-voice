@@ -42,6 +42,32 @@
 .nova-message{font-size:13px;color:#526078;line-height:1.5}
 #scannerVideo{width:100%;max-width:280px;aspect-ratio:1;object-fit:cover;border-radius:15px;background:#17243a}
 #enableAccess{margin-top:16px}
+
+#dashboard{min-height:100svh;background:#f7f8fa}
+#dashboard .dash-head{padding-bottom:26px}
+.panel-heading{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+.panel-heading .avatar{margin:0;flex:none}
+.panel-heading h1{font-size:clamp(26px,5vw,38px);margin:0;letter-spacing:-.8px}
+.panel-heading p{margin:5px 0 0;color:#596981;overflow-wrap:anywhere}
+.panel-tabs{display:flex;gap:6px;overflow:auto;margin:0 0 20px;border-bottom:1px solid #dce4ef}
+.panel-tabs button{padding:12px 10px;border:0;background:none;color:#40516d;border-bottom:2px solid transparent;white-space:nowrap}
+.panel-tabs button[aria-pressed="true"]{border-color:#2559f3;color:#1745d0;font-weight:700}
+.panel-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.panel-card{background:#fff;border:1px solid #e0e7f1;border-radius:16px;padding:18px;min-width:0}
+.panel-card h2,.panel-card h3{font-size:17px;margin:0 0 8px}
+.panel-card p,.panel-card dd,.panel-card small{color:#54647c;line-height:1.5;overflow-wrap:anywhere}
+.panel-card p{margin:0 0 12px}
+.panel-card button{margin-top:6px}
+#enableAccess{margin-top:6px}
+.email-state{display:inline-block;padding:5px 9px;border-radius:8px;background:#fff2d9;color:#784a0a;font-weight:650}
+.email-state[data-verified="true"]{background:#ddf7eb;color:#196342}
+.device-list{list-style:none;margin:12px 0 0;padding:0}
+.device-list li{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid #e3e9f1;padding:12px 0}
+.device-list small{display:block}
+.profile-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0}
+.profile-details dt{font-size:12px;color:#54647c}
+.profile-details dd{margin:3px 0 0}
+@media(max-width:540px){.panel-cards{grid-template-columns:1fr}.dashboard{padding:0 16px 35px}}
 </style><script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script></head><body>
 <section class="screen" id="home"><div class="shell"><nav class="nav"><div class="logo"><span class="logo-mark">✦</span>nova.</div><span class="nav-note">Tu espacio personal</span></nav><main class="home-main"><div class="home-copy"><div class="eyebrow">BIENVENIDO A NOVA</div><h1>Todo empieza<br>con <span>vos.</span></h1><p>Un espacio simple, pensado para vos. Ingresá con tu rostro y accedé a tu panel personal en segundos.</p><button class="primary" id="loginButton">Ingresar a mi cuenta &nbsp; →</button></div><div class="home-art" aria-hidden="true"><div class="art-card"><div class="art-face"></div><div class="art-line"></div><div class="art-line short"></div></div></div></main><footer class="foot">Nova · Experiencia de acceso personal</footer></div></section>
@@ -80,7 +106,27 @@
   <fieldset class="profile-step" hidden disabled><legend>Nacionalidad y localidad</legend><div class="form-grid"><label class="full">Nacionalidad<select id="personCountry" required><option value="">Seleccioná tu nacionalidad</option></select></label><label>Provincia / Estado<input id="personProvince" list="provinceList" required placeholder="Provincia o estado"><datalist id="provinceList"></datalist></label><label>Localidad<input id="personCity" list="cityList" required placeholder="Ciudad o localidad"><datalist id="cityList"></datalist></label></div><p class="form-help" id="locationHelp" aria-live="polite">Para Argentina podés elegir una sugerencia o escribir los datos manualmente.</p></fieldset>
   <div class="profile-actions"><button class="secondary" id="previousProfile" type="button" hidden>Atrás</button><button class="primary" id="nextProfile" type="submit">Continuar</button></div>
 </form><div class="registration-progress"><div class="progress-meta"><span>Registro de cuenta</span><strong id="profileProgress">Paso 1 de 3</strong></div><div class="progress"><div class="bar"></div></div></div></div></section>
-<section class="screen" id="dashboard" hidden><div class="dashboard"><nav class="dash-head"><div class="logo"><span class="logo-mark">✦</span>nova.</div><button class="secondary" id="logoutButton">Cerrar sesión</button></nav><p class="dash-intro">TU ESPACIO PERSONAL</p><h1 class="dash-title">¡Hola, <span id="panelName"></span>! 👋</h1><p class="dash-sub">Qué bueno verte de nuevo. Este es tu panel.</p><button class="primary" id="enableAccess" type="button" hidden>Habilitar acceso</button><div class="dash-grid"><article class="dash-card primary-card"><div class="tag">TU CUENTA</div><h3>Todo en orden.</h3><p>Accediste correctamente a tu espacio personal.</p></article><article class="dash-card"><div class="tag">PERFIL</div><div class="avatar" id="panelInitial"></div><h3>Identidad registrada</h3><p>Tu cuenta está guardada en Nova.</p></article></div></div></section><script>
+<section class="screen" id="dashboard" hidden>
+<div class="dashboard">
+  <nav class="dash-head"><div class="logo"><span class="logo-mark">✦</span>nova.</div><button class="secondary" id="logoutButton">Cerrar sesión</button></nav>
+  <header class="panel-heading"><div class="avatar" id="panelInitial" aria-hidden="true"></div><div><h1>Hola, <span id="panelName"></span></h1><p id="panelEmail"></p></div></header>
+  <nav class="panel-tabs" aria-label="Secciones del panel">
+    <button type="button" data-panel="overview" aria-pressed="true">Inicio</button>
+    <button type="button" data-panel="devices" aria-pressed="false">Dispositivos</button>
+    <button type="button" data-panel="profile" aria-pressed="false">Mi perfil</button>
+  </nav>
+  <p class="nova-message" id="panelMessage" role="status" hidden></p>
+  <div id="panel-overview" class="panel-cards">
+    <article class="panel-card"><h2>Correo electrónico</h2><p><span class="email-state" id="emailState">Email no verificado</span></p><button class="primary" type="button" id="sendVerification">Verificar correo</button></article>
+    <article class="panel-card"><h2>Acceso a tu cuenta</h2><p>Revisá las sesiones abiertas o autorizá el ingreso en una computadora.</p><button class="secondary" type="button" data-open-devices>Ver dispositivos</button><button class="secondary" id="enableAccess" type="button" hidden>Habilitar acceso</button></article>
+  </div>
+  <article class="panel-card" id="panel-devices" hidden>
+    <h2>Dispositivos conectados</h2><p>Sesiones abiertas de tu cuenta. Podés cerrar el acceso en otro dispositivo.</p>
+    <button class="secondary" type="button" id="refreshDevices">Actualizar</button><ul class="device-list" id="deviceList"></ul>
+  </article>
+  <article class="panel-card" id="panel-profile" hidden><h2>Datos de tu perfil</h2><dl class="profile-details" id="profileDetails"></dl></article>
+</div>
+</section><script>
 
 const $=id=>document.getElementById(id),video=$('video'),overlay=$('overlay'),ctx=overlay.getContext('2d');let landmarker,stream,muted=false,working=false,lastResult=null;const OLD='face-voice-demo-template-v1';let starting=false;try{localStorage.removeItem('identity-credential-v1');localStorage.removeItem('identity-credential-v2');localStorage.removeItem(OLD)}catch(e){}
 let lastSpoken='',speechEnabled=true;function selectVoice(){if(!('speechSynthesis' in window))return null;const voices=speechSynthesis.getVoices().filter(v=>/^es([-_]|$)/i.test(v.lang));return voices.find(v=>/premium|enhanced|natural|mejorada/i.test(v.name)&&/^es[-_]AR/i.test(v.lang))||voices.find(v=>/premium|enhanced|natural|mejorada/i.test(v.name))||voices.find(v=>/^es[-_]AR/i.test(v.lang))||voices[0]||null}function say(t){if(!speechEnabled||!('speechSynthesis' in window)||!t||t===lastSpoken)return;lastSpoken=t;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t.replace('Centrando tu rostro…','Mirá al frente.').replace('Girá la cabeza a tu derecha','Ahora girá suavemente a tu derecha.').replace('Ahora hacia tu izquierda','Muy bien. Ahora hacia la izquierda.').replace('Parpadeá una vez','Perfecto. Parpadeá una vez.').replace('Analizando tu rostro…','Un momento, estamos terminando.'));u.lang='es-AR';u.rate=.91;u.pitch=1.02;u.volume=.85;const voice=selectVoice();if(voice)u.voice=voice;speechSynthesis.speak(u)}catch(e){console.warn('Audio no disponible',e)}}function status(t,detail=''){$('status').textContent=t;if(detail)$('detail').textContent=detail;$('hint').textContent=t}
@@ -150,6 +196,88 @@ const isPhone=/iPhone|iPod|Windows Phone/i.test(ua)||(/Android/i.test(ua)&&/Mobi
 const sessionKey='nova-session-v1';
 let desktopRequest=null,phoneRequest=null,scannerStream=null,pollTimer=null;
 let sessionToken=sessionStorage.getItem(sessionKey);
+const homePath='/face-id-voice/';
+const panelPath=homePath+'panel';
+const panelButtons=[...document.querySelectorAll('[data-panel]')];
+function panelMessage(message=''){
+  $('panelMessage').textContent=message;
+  $('panelMessage').hidden=!message;
+}
+function selectPanel(section){
+  for(const button of panelButtons){
+    const active=button.dataset.panel===section;
+    button.setAttribute('aria-pressed',active);
+    $('panel-'+button.dataset.panel).hidden=!active;
+  }
+  panelMessage();
+  if(section==='devices')loadDevices();
+}
+for(const button of panelButtons)button.onclick=()=>selectPanel(button.dataset.panel);
+document.querySelector('[data-open-devices]').onclick=()=>selectPanel('devices');
+function renderAccount(account){
+  $('panelEmail').textContent=account.email;
+  const verified=Boolean(account.emailVerifiedAt);
+  $('emailState').textContent=verified?'Email verificado':'Email no verificado';
+  $('emailState').dataset.verified=String(verified);
+  $('sendVerification').hidden=verified;
+  const data=$('profileDetails');
+  data.replaceChildren();
+  const names=new Intl.DisplayNames(['es'],{type:'region'});
+  for(const [label,value] of [
+    ['Nombre',account.name+' '+account.surname],['Email',account.email],['Edad',account.age],
+    ['Sexo',{'otro':'Otro','sin-declarar':'Prefiero no decirlo','femenino':'Femenino','masculino':'Masculino'}[account.sex]],
+    ['Nacionalidad',account.country&&names.of(account.country)],['Provincia',account.province],['Localidad',account.city]
+  ]){
+    if(!value)continue;
+    const row=document.createElement('div'),term=document.createElement('dt'),detail=document.createElement('dd');
+    term.textContent=label;detail.textContent=value;row.append(term,detail);data.append(row);
+  }
+}
+async function refreshAccount(){
+  const token=sessionToken;
+  const account=await api('/me',{token});
+  if(token===sessionToken)renderAccount(account);
+  return account;
+}
+async function loadDevices(){
+  const list=$('deviceList'),button=$('refreshDevices');
+  button.disabled=true;
+  try{
+    const {devices}=await api('/devices',{token:sessionToken});
+    list.replaceChildren();
+    for(const device of devices){
+      const item=document.createElement('li'),info=document.createElement('div');
+      const name=document.createElement('strong'),date=document.createElement('small');
+      name.textContent=device.name+(device.current?' · Este dispositivo':'');
+      date.textContent=(device.createdAt?'Ingresó el '+new Date(device.createdAt).toLocaleString('es-AR')+' · ':'')+
+        'Vence el '+new Date(device.expiresAt).toLocaleDateString('es-AR');
+      info.append(name,date);item.append(info);
+      if(!device.current&&device.id){
+        const revoke=document.createElement('button');
+        revoke.className='secondary';revoke.type='button';revoke.textContent='Cerrar sesión';
+        revoke.onclick=async()=>{
+          revoke.disabled=true;
+          try{await api('/devices/revoke',{token:sessionToken,id:device.id});await loadDevices()}
+          catch(error){panelMessage(error.message);revoke.disabled=false}
+        };
+        item.append(revoke);
+      }
+      list.append(item);
+    }
+  }catch(error){panelMessage(error.message)}
+  finally{button.disabled=false}
+}
+$('refreshDevices').onclick=loadDevices;
+$('sendVerification').onclick=async()=>{
+  const button=$('sendVerification');
+  button.disabled=true;panelMessage();
+  try{
+    const result=await api('/email/send',{token:sessionToken});
+    if(result.verified)await refreshAccount();
+    else panelMessage('Te enviamos un enlace. Revisá tu bandeja de entrada y correo no deseado.');
+  }catch(error){panelMessage(error.message)}
+  finally{button.disabled=false}
+};
 function notify(message=''){
   $('novaMessage').textContent=message;
   $('novaMessage').hidden=!message;
@@ -187,7 +315,10 @@ function finishSignIn({session,account}){
   desktopRequest=null;
   phoneRequest=null;
   $('enableAccess').hidden=!isPhone;
+  selectPanel('overview');
+  renderAccount(account);
   welcome(account.name);
+  refreshAccount().catch(error=>panelMessage(error.message));
 }
 function openProfile(){
   profileForm.reset();
@@ -286,7 +417,7 @@ async function approvePhone(){
 function readQR(value){
   try{
     const url=new URL(value);
-    if(url.origin!==location.origin||url.pathname!==location.pathname)return null;
+    if(url.origin!==location.origin||url.pathname!==homePath)return null;
     const match=/^#qr=([A-Za-z0-9_-]{43})\.([A-Za-z0-9_-]{43})$/.exec(url.hash);
     return match&&{id:match[1],token:match[2]};
   }catch{return null}
@@ -371,7 +502,7 @@ $('logoutButton').onclick=()=>{
   cancelRequest();
   showScreen('home');
 };
-function showScreen(id){for(const el of document.querySelectorAll('.screen'))el.hidden=el.id!==id;document.body.style.background='#f7f8fa';window.scrollTo(0,0)};
+function showScreen(id){if(id==='dashboard'&&location.pathname!==panelPath)history.replaceState(null,'',panelPath);if(id==='home'&&location.pathname===panelPath)history.replaceState(null,'',homePath);for(const el of document.querySelectorAll('.screen'))el.hidden=el.id!==id;document.body.style.background='#f7f8fa';window.scrollTo(0,0)};
 let prevTime=-1;function tick(){if(video.readyState>=2&&landmarker){try{if(video.currentTime!==prevTime){prevTime=video.currentTime;lastResult=landmarker.detectForVideo(video,performance.now())}ctx.clearRect(0,0,overlay.width,overlay.height)}catch(e){console.error(e)}}if(stream)requestAnimationFrame(tick)}
 function wait(ms){return new Promise(r=>setTimeout(r,ms))}
 function setStep(n,t,d){const p=Math.min(n,5);const phases=[['👀','Mirá al frente'],['👉','Girá a la derecha'],['👈','Girá a la izquierda'],['⬆️','Mirá hacia arriba'],['⬇️','Mirá hacia abajo'],['✅','Verificación completada']];$('camera').dataset.phase=String(p);$('phaseCard').hidden=false;$('phaseEmoji').textContent=phases[p][0];$('phaseLabel').textContent=phases[p][1];$('phaseCount').textContent=p<5?'PASO '+(p+1)+' DE 5':'LISTO';setVerificationProgress(p*20);status(t,d);$('camera').classList.toggle('good',n>0);if(n===1)say('Girá la cabeza hacia tu derecha.');if(n===2)say('Ahora girá hacia tu izquierda.');if(n===3&&t.startsWith('Parpadeá'))say('Parpadeá una vez.')}
@@ -471,15 +602,32 @@ $('backButton').onclick=()=>{
   if('speechSynthesis' in window)speechSynthesis.cancel();
   showScreen(sessionToken?'dashboard':'home');
 };
+const emailConfirmation=/^#verify-email=([A-Za-z0-9_-]{43})$/.exec(location.hash);
 const incoming=readQR(location.href);
-if(incoming){
+if(emailConfirmation){
+  history.replaceState(null,'',homePath);
+  showScreen('verify');
+  showApproval('Verificá tu correo','Confirmá que este correo te pertenece.','Confirmar correo',async()=>{
+    await api('/email/confirm',{token:emailConfirmation[1]});
+    if(sessionToken){
+      const account=await refreshAccount().catch(()=>null);
+      if(account){$('enableAccess').hidden=!isPhone;welcome(account.name);panelMessage('Tu correo se verificó.');return}
+    }
+    $('phoneApprovalTitle').textContent='Correo verificado';
+    $('phoneApprovalText').textContent='Ya podés volver a tu panel.';
+    $('confirmPhone').hidden=true;
+  });
+}else if(incoming){
   history.replaceState(null,'',location.pathname+location.search);
   openQR(incoming);
 }else if(sessionToken){
-  api('/me',{token:sessionToken}).then(account=>{
+  refreshAccount().then(account=>{
     $('enableAccess').hidden=!isPhone;
     welcome(account.name);
-  }).catch(()=>{sessionToken=null;sessionStorage.removeItem(sessionKey)});
+  }).catch(()=>{sessionToken=null;sessionStorage.removeItem(sessionKey);showScreen('home')});
 }
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&stream&&!$('verify').hidden){video.play().catch(()=>{})}});window.addEventListener('pagehide',()=>{stopScanner();stream?.getTracks().forEach(t=>t.stop())});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&stream&&!$('verify').hidden){video.play().catch(()=>{})}});document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&sessionToken&&!$('dashboard').hidden)refreshAccount().catch(()=>{});
+});
+window.addEventListener('pagehide',()=>{stopScanner();stream?.getTracks().forEach(t=>t.stop())});
 </script></body></html>

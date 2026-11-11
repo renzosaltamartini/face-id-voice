@@ -24,6 +24,16 @@ const cors = {
 const json = (value, status = 200) => Response.json(value, { status, headers: cors });
 const fail = (status, message) => json({ error: message }, status);
 
+function deviceName(request) {
+  const ua = request.headers.get('User-Agent') || '';
+  const platform = /iPad/.test(ua) ? 'iPad' : /iPhone/.test(ua) ? 'iPhone' :
+    /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' :
+    /Macintosh/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'Dispositivo';
+  const browser = /Edg/.test(ua) ? 'Edge' : /Chrome|CriOS/.test(ua) ? 'Chrome' :
+    /Firefox|FxiOS/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'Navegador';
+  return browser + ' · ' + platform;
+}
+
 function profileFrom(input) {
   const text = key => typeof input?.[key] === 'string' ? input[key].trim() : '';
   const profile = {
@@ -41,7 +51,7 @@ function profileFrom(input) {
 }
 
 export default {
-  async fetch(request, { DB }) {
+  async fetch(request, { DB, BREVO_API_KEY, NOVA_EMAIL_FROM }) {
     if (request.headers.get('Origin') !== origin) return fail(403, 'Origen no autorizado.');
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (request.method !== 'POST') return fail(405, 'Método no disponible.');
@@ -68,16 +78,71 @@ export default {
         qr.make();
         return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
       }
-      if (route === '/me' || route === '/logout') {
+      if (route === '/email/confirm') {
+        if (!validToken(body.token)) return fail(400, 'El enlace de verificación no es válido.');
+        const digest = await hash(body.token);
+        const [result] = await DB.batch([
+          query(`UPDATE accounts SET email_verified_at = ? WHERE id = (
+            SELECT account_id FROM email_verifications WHERE token_hash = ? AND expires_at > ?)
+            AND email_verified_at IS NULL`, now, digest, now),
+          query('DELETE FROM email_verifications WHERE token_hash = ?', digest),
+        ]);
+        return result.meta.changes === 1 ? json({ verified: true }) : fail(410, 'El enlace venció o ya fue usado.');
+      }
+      if (['/me', '/logout', '/devices', '/devices/revoke', '/email/send'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
           await query('DELETE FROM sessions WHERE token_hash = ?', key).run();
           return json({});
         }
-        const account = await query(`SELECT a.given_name AS name, a.family_name AS surname, a.email
+        const account = await query(`SELECT a.id, a.given_name AS name, a.family_name AS surname, a.email,
+          a.email_verified_at AS emailVerifiedAt, a.age, a.sex, a.nationality AS country, a.province, a.locality AS city
           FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`, key, now).first();
-        return account ? json(account) : fail(401, 'Volvé a iniciar sesión.');
+        if (!account) return fail(401, 'Volvé a iniciar sesión.');
+        if (route === '/devices') {
+          await query(`UPDATE sessions SET device_id = lower(hex(randomblob(21))) || '0',
+            device_name = CASE WHEN token_hash = ? THEN ? ELSE 'Sesión anterior' END
+            WHERE account_id = ? AND expires_at > ? AND device_id IS NULL`, key, deviceName(request), account.id, now).run();
+          const { results } = await query(`SELECT device_id AS id, COALESCE(device_name, 'Sesión anterior') AS name,
+            created_at AS createdAt, expires_at AS expiresAt, token_hash = ? AS current
+            FROM sessions WHERE account_id = ? AND expires_at > ? ORDER BY current DESC, expires_at DESC`, key, account.id, now).all();
+          return json({ devices: results });
+        }
+        if (route === '/devices/revoke') {
+          if (!validToken(body.id)) return fail(400, 'Dispositivo inválido.');
+          await query('DELETE FROM sessions WHERE account_id = ? AND device_id = ? AND token_hash <> ?', account.id, body.id, key).run();
+          return json({});
+        }
+        if (route === '/email/send') {
+          if (account.emailVerifiedAt) return json({ verified: true });
+          if (!BREVO_API_KEY || !NOVA_EMAIL_FROM) return fail(503, 'El envío de correos todavía no está habilitado.');
+          const secret = token();
+          const digest = await hash(secret);
+          const sent = await query(`INSERT INTO email_verifications (account_id, token_hash, expires_at, sent_at)
+            VALUES (?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET token_hash = excluded.token_hash,
+            expires_at = excluded.expires_at, sent_at = excluded.sent_at WHERE email_verifications.sent_at <= ?`,
+          account.id, digest, now + 30 * 60_000, now, now - 60_000).run();
+          if (!sent.meta.changes) return fail(429, 'Esperá un minuto antes de pedir otro correo.');
+          const url = site + '#verify-email=' + secret;
+          try {
+            const delivered = await fetch('https://api.brevo.com/v3/smtp/email', {
+              method: 'POST', headers: { 'api-key': BREVO_API_KEY, 'content-type': 'application/json' },
+              body: JSON.stringify({
+                sender: { name: 'Nova', email: NOVA_EMAIL_FROM }, to: [{ email: account.email }],
+                subject: 'Verificá tu correo en Nova',
+                textContent: 'Confirmá tu correo en Nova: ' + url + '\nEl enlace vence en 30 minutos.',
+              }),
+            });
+            if (!delivered.ok) throw Error('Delivery rejected');
+          } catch {
+            await query('DELETE FROM email_verifications WHERE account_id = ? AND token_hash = ?', account.id, digest).run();
+            return fail(502, 'No se pudo enviar el correo. Volvé a intentarlo.');
+          }
+          return json({ sent: true });
+        }
+        delete account.id;
+        return json(account);
       }
       if (!['/status', '/finish', '/phone', '/options', '/approve'].includes(route)) return fail(404, 'Opción no disponible.');
       if (!validToken(body.id) || !validToken(body.token)) return fail(400, 'Solicitud inválida.');
@@ -152,8 +217,9 @@ export default {
       }
       commands.push(query(`UPDATE qr_requests SET consumed_at = ?, redeem_hash = ?, pending_credential = NULL
         WHERE id = ? AND consumed_at IS NULL AND approved_at IS NOT NULL AND expires_at > ?`, now, sessionHash, handoff.id, now));
-      commands.push(query(`INSERT INTO sessions (token_hash, account_id, expires_at)
-        SELECT ?, ?, ? FROM qr_requests WHERE id = ? AND redeem_hash = ?`, sessionHash, accountId, now + 7 * 86_400_000, handoff.id, sessionHash));
+      commands.push(query(`INSERT INTO sessions (token_hash, account_id, expires_at, device_id, device_name, created_at)
+        SELECT ?, ?, ?, ?, ?, ? FROM qr_requests WHERE id = ? AND redeem_hash = ?`,
+      sessionHash, accountId, now + 7 * 86_400_000, token(), deviceName(request), now, handoff.id, sessionHash));
       const result = await DB.batch(commands);
       if (result.at(-1).meta.changes !== 1) return fail(410, 'El código venció o ya fue usado.');
       const account = await query('SELECT given_name AS name, family_name AS surname, email FROM accounts WHERE id = ?', accountId).first();
