@@ -69,13 +69,13 @@
   background:#35454f;box-sizing:border-box;transform:translateX(var(--tab-shift,0px));
   transition:transform .32s cubic-bezier(.22,.8,.25,1)
 }
-.panel-nav button{
+.panel-nav :is(button,a){
   position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:32px;
   border:1px solid transparent;border-radius:999px;padding:4px 10px;
   background:transparent;color:var(--panel-muted);font-size:11px;font-weight:600;white-space:nowrap
 }
-.panel-nav button span{font-size:14px;line-height:1;color:#a8c2d2}
-.panel-nav button:hover{color:white;background:#292f35}
+.panel-nav :is(button,a) span{font-size:14px;line-height:1;color:#a8c2d2}
+.panel-nav :is(button,a):hover{color:white;background:#292f35}
 .panel-nav button[aria-pressed="true"],.panel-nav button[aria-pressed="true"]:hover{background:transparent;color:#fff}
 @media(prefers-reduced-motion:reduce){.panel-nav::before{transition:none}}
 .panel-nav button[aria-pressed="true"] span{color:#e6edf2}
@@ -155,7 +155,7 @@
   padding:8px 10px;background:#131619;color:var(--panel-text);font:inherit;color-scheme:dark
 }
 .panel-edit-grid .full{grid-column:1/-1}
-.panel-nav button:focus-visible,.panel-main button:focus-visible,.panel-main input:focus-visible,.panel-main select:focus-visible,.panel-account button:focus-visible{
+.panel-nav :is(button,a):focus-visible,.panel-main button:focus-visible,.panel-main input:focus-visible,.panel-main select:focus-visible,.panel-account button:focus-visible{
   outline:2px solid #a8c2d2;outline-offset:2px
 }
 @media(max-width:790px){
@@ -166,8 +166,8 @@
   #panel-security .panel-grid .panel-card{min-height:0}
 }
 @media(max-width:520px){
-  .panel-nav button{padding:4px 3px;font-size:10px}
-  .panel-nav button span{display:none}
+  .panel-nav :is(button,a){padding:4px 3px;font-size:10px}
+  .panel-nav :is(button,a) span{display:none}
   .panel-hero{min-height:190px;border-radius:16px}
   .panel-metrics,.panel-grid{gap:7px}
   .panel-metric,.panel-card{padding:11px 8px}
@@ -286,62 +286,15 @@ body{background:var(--site-bg)}
 .activity-list .panel-pill{flex:none}
 .panel-row-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px}
 .panel-list-empty{color:var(--panel-muted);font-size:12px}
-@media(max-width:380px){.panel-nav button{font-size:9px}.panel-row-actions{justify-content:flex-start}}
+@media(max-width:380px){.panel-nav :is(button,a){font-size:9px}.panel-row-actions{justify-content:flex-start}}
 
 .remember-device{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--site-muted);font-size:11px;line-height:1.4;text-align:left}
 .remember-device input{width:15px;height:15px;accent-color:var(--site-accent);flex:none}
 .device-choice .remember-device{margin-top:4px}
 
-.panel-nav::before{transition:transform .32s cubic-bezier(.22,.8,.25,1),opacity .2s}
-.panel-nav[data-room-open="true"]::before{opacity:0}
-.panel-nav .room-nav,.panel-nav .room-nav:hover{
-  border-color:#617d8b;background:#26343b;color:#d4e8ef;box-shadow:0 0 11px #9ccadd40,inset 0 0 9px #a8c2d21a
-}
-.panel-nav .room-nav[aria-pressed="true"],.panel-nav .room-nav[aria-pressed="true"]:hover{
-  border-color:#a8c2d2;background:#344a54;color:#f1faff;box-shadow:0 0 15px #9ccadd65,inset 0 0 10px #b8e3ef22
-}
-.panel-nav .room-nav span{color:#c9e8f3}
-@media(prefers-reduced-motion:reduce){.panel-nav::before{transition:none}}
-.room-layout{display:grid;grid-template-columns:216px minmax(0,1fr);min-height:min(640px,74svh);border:1px solid var(--panel-line);border-radius:16px;overflow:hidden;background:#151719}
-.room-sidebar{min-width:0;border-right:1px solid var(--panel-line);padding:14px 11px;background:#191c20}
-.room-sidebar-head,.room-heading,.room-page-toolbar{display:flex;align-items:center;justify-content:space-between;gap:9px}
-.room-sidebar-head{margin-bottom:12px}
-.room-sidebar-head strong{font-size:13px}
-.room-folders,.room-page-list{display:grid;gap:5px}
-#dashboard .room-folder,#dashboard .room-page{display:block;width:100%;min-width:0;text-align:left;border-radius:9px;overflow-wrap:anywhere}
-#dashboard .room-folder[aria-pressed="true"],#dashboard .room-page[aria-pressed="true"]{border-color:#8aabbc;background:#34434c}
-.room-workspace{min-width:0;padding:clamp(16px,4vw,42px)}
-.room-heading{margin-bottom:14px;align-items:flex-start}
-.room-heading h1{font-size:clamp(25px,4vw,38px);line-height:1.1;letter-spacing:-.045em;margin:0;overflow-wrap:anywhere}
-.room-heading p,.room-empty p,.room-message,.room-page-list p{color:var(--panel-muted);font-size:12px;line-height:1.55}
-.room-heading p{margin:6px 0 0}
-.room-actions{display:flex;flex-wrap:wrap;gap:6px}
-.room-message{margin:0 0 10px;color:#d6e7ef}
-.room-empty{padding:22px 12px;border:1px dashed #3f474e;border-radius:12px;text-align:center}
-.room-empty p{margin:0 0 9px}
-.room-page-toolbar{margin-bottom:10px}
-.room-page-toolbar input,.room-editor input,.room-editor textarea,#roomFolderDialog input{
-  width:100%;min-width:0;padding:8px 10px;border:1px solid #444c54;border-radius:9px;
-  background:#111416;color:#eff1f3;font:inherit;font-size:12px
-}
-.room-page-toolbar button{flex:none}
-.room-page-list{max-height:195px;overflow:auto}
-.room-page-list p{margin:4px 0}
-.room-editor{display:grid;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--panel-line)}
-.room-editor label,#roomFolderDialog label{display:grid;gap:5px;color:var(--panel-muted);font-size:11px}
-.room-editor #roomPageTitle{font-family:var(--font-heading);font-size:19px}
-.room-editor textarea{min-height:195px;resize:vertical;line-height:1.6}
-#roomFolderDialog{width:min(420px,calc(100% - 28px));margin:auto;padding:18px;border:1px solid #505861;border-radius:16px;background:var(--panel-surface);color:var(--panel-text)}
-#roomFolderDialog::backdrop{background:#080a0bd9}
-#roomFolderDialog h2{margin:0 0 10px}
-#roomFolderDialog .room-actions{margin-top:12px}
-#roomFolderError{color:#ffc8c4;font-size:12px}
-@media(max-width:690px){
-  .room-layout{grid-template-columns:1fr}
-  .room-sidebar{border-right:0;border-bottom:1px solid var(--panel-line)}
-  .room-folders{display:flex;overflow:auto}
-  #dashboard .room-folder{width:auto;flex:0 0 auto;max-width:190px;white-space:nowrap;text-overflow:ellipsis}
-  .room-heading{flex-direction:column}
+.panel-nav .room-nav{
+  text-decoration:none;border-color:#617d8b;background:#26343b;color:#d4e8ef;
+  box-shadow:0 0 11px #9ccadd40,inset 0 0 9px #a8c2d21a
 }
 </style><script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script></head><body>
@@ -412,7 +365,7 @@ body{background:var(--site-bg)}
       <button type="button" data-panel="overview" aria-pressed="true"><span aria-hidden="true">⌂</span>Inicio</button>
       <button type="button" data-panel="devices" aria-pressed="false"><span aria-hidden="true">▤</span>Dispositivos</button>
       <button type="button" data-panel="profile" aria-pressed="false"><span aria-hidden="true">○</span>Mi perfil</button>
-      <button class="room-nav" type="button" data-panel="room" aria-pressed="false"><span aria-hidden="true">✧</span>Room</button>
+      <a class="room-nav" id="roomLink" href="/panel/room"><span aria-hidden="true">✧</span>Room</a>
     </nav>
     <div class="panel-account"><div class="avatar" id="panelInitial" aria-hidden="true"></div><button class="secondary" id="logoutButton" type="button">Cerrar sesión</button></div>
   </aside>
@@ -478,54 +431,8 @@ body{background:var(--site-bg)}
         <button class="secondary danger-button" id="openDeleteAccount" type="button">Borrar cuenta</button>
       </article>
     </section>
-    <section id="panel-room" hidden>
-      <div class="room-layout">
-        <aside class="room-sidebar" aria-label="Carpetas de Room">
-          <div class="room-sidebar-head"><strong>Carpetas</strong><button class="secondary" id="newRoomFolder" type="button">+ Nueva</button></div>
-          <div class="room-folders" id="roomFolders"></div>
-        </aside>
-        <div class="room-workspace">
-          <header class="room-heading">
-            <div><h1 id="roomHeading">Room</h1><p id="roomSubtitle">Organizá tus páginas en carpetas privadas.</p></div>
-            <div class="room-actions" id="roomFolderActions" hidden>
-              <button class="secondary" id="renameRoomFolder" type="button">Renombrar</button>
-              <button class="secondary" id="deleteRoomFolder" type="button">Borrar carpeta</button>
-            </div>
-          </header>
-          <p class="room-message" id="roomStatus" role="status" hidden></p>
-          <div class="room-empty" id="roomEmpty"><p>Creá una carpeta para empezar a escribir.</p><button class="primary" id="roomEmptyCreate" type="button">Crear carpeta</button></div>
-          <div class="room-pages" id="roomPages" hidden>
-            <div class="room-page-toolbar">
-              <input id="searchRoomPages" type="search" placeholder="Buscar páginas" aria-label="Buscar páginas por título">
-              <button class="primary" id="newRoomPage" type="button">+ Página</button>
-            </div>
-            <div class="room-page-list" id="roomPageList"></div>
-          </div>
-          <form id="roomEditor" class="room-editor" hidden>
-            <label class="room-title-label">Título<input id="roomPageTitle" required maxlength="120" placeholder="Sin título"></label>
-            <label class="room-content-label">Contenido<textarea id="roomPageContent" maxlength="10000" placeholder="Empezá a escribir…"></textarea></label>
-            <div class="room-actions">
-              <button class="primary" id="saveRoomPage" type="submit">Guardar página</button>
-              <button class="secondary" id="closeRoomPage" type="button">Cerrar</button>
-              <button class="secondary" id="deleteRoomPage" type="button" hidden>Borrar página</button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </section>
   </main>
 </div>
-<dialog id="roomFolderDialog" aria-labelledby="roomFolderDialogTitle">
-  <form id="roomFolderForm">
-    <h2 id="roomFolderDialogTitle">Nueva carpeta</h2>
-    <label>Nombre<input id="roomFolderName" maxlength="70" required autocomplete="off"></label>
-    <p id="roomFolderError" role="alert" hidden></p>
-    <div class="room-actions">
-      <button class="primary" id="saveRoomFolder" type="submit">Guardar carpeta</button>
-      <button class="secondary" id="cancelRoomFolder" type="button">Cancelar</button>
-    </div>
-  </form>
-</dialog>
 <dialog id="deleteAccountDialog" aria-labelledby="deleteAccountTitle">
   <form id="deleteAccountForm">
     <h2 id="deleteAccountTitle">Borrar tu cuenta</h2>
@@ -539,7 +446,7 @@ body{background:var(--site-bg)}
     </div>
   </form>
 </dialog>
-</section><script>
+</section><script src="/face-id-voice/shared/session.js"></script><script>
 
 const $=id=>document.getElementById(id),video=$('video'),overlay=$('overlay'),ctx=overlay.getContext('2d');let landmarker,stream,muted=false,working=false,lastResult=null;const OLD='face-voice-demo-template-v1';let starting=false;try{localStorage.removeItem('identity-credential-v1');localStorage.removeItem('identity-credential-v2');localStorage.removeItem(OLD)}catch(e){}
 let lastSpoken='',speechEnabled=true;function selectVoice(){if(!('speechSynthesis' in window))return null;const voices=speechSynthesis.getVoices().filter(v=>/^es([-_]|$)/i.test(v.lang));return voices.find(v=>/premium|enhanced|natural|mejorada/i.test(v.name)&&/^es[-_]AR/i.test(v.lang))||voices.find(v=>/premium|enhanced|natural|mejorada/i.test(v.name))||voices.find(v=>/^es[-_]AR/i.test(v.lang))||voices[0]||null}function say(t){if(!speechEnabled||!('speechSynthesis' in window)||!t||t===lastSpoken)return;lastSpoken=t;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t.replace('Centrando tu rostro…','Mirá al frente.').replace('Girá la cabeza a tu derecha','Ahora girá suavemente a tu derecha.').replace('Ahora hacia tu izquierda','Muy bien. Ahora hacia la izquierda.').replace('Parpadeá una vez','Perfecto. Parpadeá una vez.').replace('Analizando tu rostro…','Un momento, estamos terminando.'));u.lang='es-AR';u.rate=.91;u.pitch=1.02;u.volume=.85;const voice=selectVoice();if(voice)u.voice=voice;speechSynthesis.speak(u)}catch(e){console.warn('Audio no disponible',e)}}function status(t,detail=''){$('status').textContent=t;if(detail)$('detail').textContent=detail;$('hint').textContent=t}
@@ -606,21 +513,8 @@ async function loadVision(){if(window.vision?.FaceLandmarker)return;const urls=[
 async function startCamera(){if(starting||landmarker)return;starting=true;const current=phoneRequest;const btn=$('start');btn.disabled=true;try{status('Solicitando acceso a la cámara…');if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia)throw Error('Abrí la web directamente en Safari mediante HTTPS, no dentro de otra aplicación.');const media=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});if(phoneRequest!==current){media.getTracks().forEach(track=>track.stop());return}stream=media;video.srcObject=stream;video.setAttribute('playsinline','');video.muted=true;if('speechSynthesis' in window){speechSynthesis.getVoices();}await video.play();if(!video.videoWidth){await new Promise(resolve=>{const timer=setTimeout(resolve,1800);video.addEventListener('loadedmetadata',()=>{clearTimeout(timer);resolve()},{once:true})})}status('Cámara activada. Cargando reconocimiento facial…');btn.hidden=true;try{await loadVision();const {FaceLandmarker,FilesetResolver}=window.vision;const vision=await FilesetResolver.forVisionTasks(window.visionWasmBase);const model=await FaceLandmarker.createFromOptions(vision,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',delegate:'CPU'},runningMode:'VIDEO',numFaces:1,outputFaceBlendshapes:true});if(phoneRequest!==current){model.close();return}landmarker=model;$('enroll').disabled=false;$('verifyAction').disabled=false;status('Ubicá tu rostro dentro del óvalo.');requestAnimationFrame(tick);setTimeout(()=>{if(!working&&phoneRequest&&!$('verify').hidden)flow()},1200)}catch(err){notify('No se pudo cargar el reconocimiento facial. Revisá la conexión y volvé a abrir la verificación.')}}catch(err){btn.disabled=false;btn.hidden=false;btn.textContent='Continuar con cámara';if(err.name==='NotFoundError'||err.name==='DevicesNotFoundError'){notify('No se encontró una cámara en este dispositivo.');return}const msg=err.name==='NotAllowedError'?'Permiso de cámara denegado. Habilitalo en Safari.':err.name==='NotFoundError'?'No se encontró una cámara.':err.message;notify('No se pudo activar la cámara: '+msg)}finally{starting=false}};
 
 
-const serverURL='https://nova-face-id.nova-face-id.workers.dev';
 const ua=navigator.userAgent;
 const isPhone=/iPhone|iPod|Windows Phone/i.test(ua)||(/Android/i.test(ua)&&/Mobile/i.test(ua));
-const sessionKey='nova-session-v1';
-const rememberedSessionKey='nova-remembered-session-v1';
-function rememberedSession(){
-  try{return localStorage.getItem(rememberedSessionKey)}catch{return null}
-}
-function setRememberedSession(token){
-  try{
-    if(token)localStorage.setItem(rememberedSessionKey,token);
-    else localStorage.removeItem(rememberedSessionKey);
-    return true;
-  }catch{return false}
-}
 let desktopRequest=null,phoneRequest=null,scannerStream=null,pollTimer=null;
 let faceOperation=null,faceStream=null,humanModel=null,accountCredentials=new Set();
 const faceStorageKey='nova-face-references-v1';
@@ -815,7 +709,6 @@ $('rememberCurrent').onchange=()=>{
   syncRememberControl();
 };
 syncRememberControl();
-const homePath='/face-id-voice/';
 const isNewSite=location.hostname!=='renzosaltamartini.github.io';
 
 $('addPasskey').hidden=!isNewSite;
@@ -834,11 +727,10 @@ $('addPasskey').onclick=async()=>{
   }catch(error){panelMessage(error.message||'No se pudo guardar la clave.')}
   finally{button.disabled=false}
 };
-const panelPath=homePath+'panel';
-const roomPath='/panel/room';
-const isRoomPath=path=>[roomPath,panelPath+'/room'].includes(path.replace(/\/$/,''));
-let openRoomAfterLogin=isRoomPath(location.pathname);
-let activePanel='overview';
+$('roomLink').href=roomPath;
+const roomReturn=new URLSearchParams(location.search);
+const returnToRoom=roomReturn.get('next')==='room';
+const roomDestination=roomUrl(roomReturn.get('page'));
 
 const panelButtons=[...document.querySelectorAll('[data-panel]')];
 const profileFields={name:'editName',surname:'editSurname',age:'editAge',sex:'editSex',country:'editCountry',province:'editProvince',city:'editCity'};
@@ -847,21 +739,11 @@ function panelMessage(message=''){
   $('panelMessage').textContent=message;
   $('panelMessage').hidden=!message;
 }
-function selectPanel(section,{updateUrl=true}={}){
-  if(activePanel==='room'&&section!=='room'){
-    if(!canLeaveRoom())return false;
-    clearRoomEditor();
-  }
+function selectPanel(section){
   const index=panelButtons.findIndex(button=>button.dataset.panel===section);
   if(index<0)return;
   const nav=panelButtons[index].parentElement;
-  nav.dataset.roomOpen=String(section==='room');
-  if(section!=='room')nav.style.setProperty('--tab-shift','calc('+(index*100)+'% + '+(index*4)+'px)');
-  activePanel=section;
-  if(updateUrl){
-    if(section==='room'&&location.pathname!==roomPath)history.pushState(null,'',roomPath);
-    if(section!=='room'&&isRoomPath(location.pathname))history.pushState(null,'',panelPath);
-  }
+  nav.style.setProperty('--tab-shift','calc('+(index*100)+'% + '+(index*4)+'px)');
   for(const button of panelButtons){
     const active=button.dataset.panel===section;
     button.setAttribute('aria-pressed',active);
@@ -873,14 +755,7 @@ function selectPanel(section,{updateUrl=true}={}){
     loadPasskeys();
     loadActivity();
   }
-  if(section==='room')loadRoom();
-  return true;
 }
-window.addEventListener('popstate',()=>{
-  if(!sessionToken||$('dashboard').hidden)return;
-  const section=isRoomPath(location.pathname)?'room':'overview';
-  if(!selectPanel(section,{updateUrl:false}))history.replaceState(null,'',roomPath);
-});
 for(const button of panelButtons)button.onclick=()=>selectPanel(button.dataset.panel);
 function renderAccount(account){
   panelAccount=account;
@@ -1122,231 +997,9 @@ async function loadActivity(){
   finally{if(load===activityLoad)button.disabled=false}
 }
 $('refreshActivity').onclick=loadActivity;
-const roomFolderDialog=$('roomFolderDialog');
-const roomFolderName=$('roomFolderName');
-const roomPageTitle=$('roomPageTitle');
-const roomPageContent=$('roomPageContent');
-let roomFolders=[],roomPages=[],roomFolderId=null,roomPage=null,editingRoomFolder=null;
-let roomLoad=0,roomPageLoad=0,roomDirty=false,roomSaving=false,roomFolderSaving=false;
-function roomStatus(message=''){
-  $('roomStatus').textContent=message;
-  $('roomStatus').hidden=!message;
-}
-function setRoomDirty(dirty){roomDirty=dirty}
-function canLeaveRoom(){
-  if(roomSaving||roomFolderSaving)return false;
-  return !roomDirty||confirm('¿Descartar los cambios de esta página?');
-}
-window.addEventListener('beforeunload',event=>{
-  if(roomDirty){event.preventDefault();event.returnValue=''}
-});
-function clearRoomEditor(){
-  roomPageLoad++;
-  roomPage=null;
-  setRoomDirty(false);
-  $('roomEditor').hidden=true;
-  $('roomEditor').reset();
-}
-function resetRoom(){
-  roomLoad++;
-  roomFolderId=null;
-  roomFolders=[];roomPages=[];
-  roomSaving=roomFolderSaving=false;
-  if(roomFolderDialog.open)roomFolderDialog.close();
-  clearRoomEditor();
-  $('searchRoomPages').value='';
-  roomStatus();
-  renderRoom();
-}
-function roomListButton(label,active,cssClass,action){
-  const button=document.createElement('button');
-  button.className='secondary '+cssClass;
-  button.type='button';
-  button.textContent=label;
-  button.setAttribute('aria-pressed',active);
-  button.onclick=action;
-  return button;
-}
-function renderRoomPages(){
-  const list=$('roomPageList');
-  list.replaceChildren();
-  if(!roomFolderId)return;
-  const search=$('searchRoomPages').value.trim().toLocaleLowerCase('es');
-  const visible=roomPages.filter(page=>page.folderId===roomFolderId&&page.title.toLocaleLowerCase('es').includes(search));
-  if(!visible.length){
-    const message=document.createElement('p');
-    message.textContent=search?'No hay páginas que coincidan.':'Esta carpeta todavía no tiene páginas.';
-    list.append(message);
-    return;
-  }
-  for(const page of visible){
-    list.append(roomListButton(page.title,roomPage?.id===page.id,'room-page',()=>openRoomPage(page.id)));
-  }
-}
-function renderRoom(){
-  const list=$('roomFolders');
-  list.replaceChildren();
-  for(const folder of roomFolders){
-    list.append(roomListButton(folder.name,folder.id===roomFolderId,'room-folder',()=>{
-      if(folder.id===roomFolderId||!canLeaveRoom())return;
-      clearRoomEditor();
-      roomFolderId=folder.id;
-      $('searchRoomPages').value='';
-      roomStatus();
-      renderRoom();
-    }));
-  }
-  const folder=roomFolders.find(folder=>folder.id===roomFolderId);
-  $('roomHeading').textContent=folder?.name||'Room';
-  const count=roomPages.filter(page=>page.folderId===roomFolderId).length;
-  $('roomSubtitle').textContent=folder?(count===1?'1 página privada':count+' páginas privadas'):'Organizá tus páginas en carpetas privadas.';
-  $('roomEmpty').hidden=Boolean(folder);
-  $('roomFolderActions').hidden=!folder;
-  $('roomPages').hidden=!folder;
-  renderRoomPages();
-}
-async function loadRoom(preferred=roomFolderId){
-  const token=sessionToken,load=++roomLoad;
-  try{
-    const data=await api('/room/list',{token});
-    if(token!==sessionToken||load!==roomLoad)return;
-    roomFolders=data.folders;
-    roomPages=data.pages;
-    const next=roomFolders.some(folder=>folder.id===preferred)?preferred:roomFolders[0]?.id??null;
-    if(roomPage&&roomPage.folderId!==next)clearRoomEditor();
-    roomFolderId=next;
-    renderRoom();
-  }catch(error){if(token===sessionToken&&load===roomLoad)roomStatus(error.message)}
-}
-function openRoomFolderDialog(folder=null){
-  editingRoomFolder=folder;
-  $('roomFolderDialogTitle').textContent=folder?'Renombrar carpeta':'Nueva carpeta';
-  roomFolderName.value=folder?.name||'';
-  $('roomFolderError').hidden=true;
-  roomFolderDialog.showModal();
-  roomFolderName.focus();
-}
-$('newRoomFolder').onclick=$('roomEmptyCreate').onclick=()=>{if(canLeaveRoom())openRoomFolderDialog()};
-$('renameRoomFolder').onclick=()=>{
-  const folder=roomFolders.find(item=>item.id===roomFolderId);
-  if(folder)openRoomFolderDialog(folder);
-};
-$('cancelRoomFolder').onclick=()=>roomFolderDialog.close();
-roomFolderDialog.addEventListener('cancel',event=>{if(roomFolderSaving)event.preventDefault()});
-$('roomFolderForm').onsubmit=async event=>{
-  event.preventDefault();
-  if(roomFolderSaving)return;
-  const token=sessionToken;
-  const folder=editingRoomFolder;
-  roomFolderSaving=true;
-  $('saveRoomFolder').disabled=$('cancelRoomFolder').disabled=true;
-  $('roomFolderError').hidden=true;
-  try{
-    const {id}=await api('/room/folders/save',{token,id:folder?.id,name:roomFolderName.value});
-    if(token!==sessionToken)return;
-    if(!folder){clearRoomEditor();$('searchRoomPages').value=''}
-    roomFolderDialog.close();
-    await loadRoom(id);
-    roomStatus(folder?'Nombre actualizado.':'Carpeta creada.');
-  }catch(error){
-    if(token===sessionToken){$('roomFolderError').textContent=error.message;$('roomFolderError').hidden=false}
-  }finally{roomFolderSaving=false;$('saveRoomFolder').disabled=$('cancelRoomFolder').disabled=false}
-};
-$('deleteRoomFolder').onclick=async()=>{
-  if(!roomFolderId||!canLeaveRoom()||!confirm('¿Borrar esta carpeta y todas sus páginas?'))return;
-  const id=roomFolderId,token=sessionToken,button=$('deleteRoomFolder');
-  roomFolderSaving=true;
-  button.disabled=true;
-  try{
-    await api('/room/folders/delete',{token,id});
-    if(token!==sessionToken)return;
-    clearRoomEditor();
-    $('searchRoomPages').value='';
-    await loadRoom();
-    roomStatus('Carpeta borrada.');
-  }catch(error){if(token===sessionToken)roomStatus(error.message)}
-  finally{roomFolderSaving=false;button.disabled=false}
-};
-function showRoomEditor(page){
-  roomPage=page;
-  roomPageTitle.value=page.title;
-  roomPageContent.value=page.content;
-  $('roomEditor').hidden=false;
-  $('deleteRoomPage').hidden=!page.id;
-  setRoomDirty(false);
-  renderRoomPages();
-  roomPageTitle.focus();
-}
-async function openRoomPage(id){
-  if(roomPage?.id===id||!canLeaveRoom())return;
-  const token=sessionToken,folder=roomFolderId,load=++roomPageLoad;
-  roomStatus();
-  try{
-    const page=await api('/room/pages/get',{token,id});
-    if(token===sessionToken&&folder===roomFolderId&&load===roomPageLoad)showRoomEditor(page);
-  }catch(error){if(token===sessionToken&&load===roomPageLoad)roomStatus(error.message)}
-}
-$('searchRoomPages').oninput=renderRoomPages;
-$('newRoomPage').onclick=()=>{
-  if(!roomFolderId||!canLeaveRoom())return;
-  clearRoomEditor();
-  roomStatus();
-  showRoomEditor({id:null,folderId:roomFolderId,title:'',content:'',revision:0});
-};
-$('closeRoomPage').onclick=()=>{if(canLeaveRoom()){clearRoomEditor();renderRoomPages();roomStatus()}};
-roomPageTitle.oninput=roomPageContent.oninput=()=>{if(roomPage)setRoomDirty(true)};
-$('roomEditor').onsubmit=async event=>{
-  event.preventDefault();
-  if(!roomPage||roomSaving||roomFolderSaving)return;
-  const token=sessionToken,page=roomPage,title=roomPageTitle.value.trim(),content=roomPageContent.value;
-  roomSaving=true;
-  $('saveRoomPage').disabled=true;
-  roomStatus();
-  try{
-    const saved=await api('/room/pages/save',{token,id:page.id,folderId:page.folderId,revision:page.revision,title,content});
-    if(token!==sessionToken||roomPage!==page)return;
-    roomPage={...page,...saved,title,content};
-    $('deleteRoomPage').hidden=false;
-    setRoomDirty(roomPageTitle.value.trim()!==title||roomPageContent.value!==content);
-    await loadRoom(page.folderId);
-    roomStatus(roomDirty?'La versión anterior quedó guardada. Tenés cambios sin guardar.':'Página guardada.');
-  }catch(error){if(token===sessionToken)roomStatus(error.message)}
-  finally{roomSaving=false;$('saveRoomPage').disabled=false}
-};
-$('deleteRoomPage').onclick=async()=>{
-  if(!roomPage?.id||!canLeaveRoom()||!confirm('¿Borrar esta página?'))return;
-  const token=sessionToken,id=roomPage.id;
-  roomSaving=true;
-  $('deleteRoomPage').disabled=true;
-  try{
-    await api('/room/pages/delete',{token,id});
-    if(token!==sessionToken)return;
-    clearRoomEditor();
-    await loadRoom();
-    roomStatus('Página borrada.');
-  }catch(error){if(token===sessionToken)roomStatus(error.message)}
-  finally{roomSaving=false;$('deleteRoomPage').disabled=false}
-};
 function notify(message=''){
   $('novaMessage').textContent=message;
   $('novaMessage').hidden=!message;
-}
-async function api(route,body){
-  let result;
-  try{
-    result=await fetch(serverURL+route,{
-      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)
-    });
-  }catch{
-    throw Error('No se pudo conectar con Renx. Revisá tu conexión.');
-  }
-  const data=await result.json().catch(()=>({}));
-  if(!result.ok){
-    const error=Error(data.error||'No se pudo completar la solicitud.');
-    error.status=result.status;
-    throw error;
-  }
-  return data;
 }
 function showVerificationMode(mode){
   $('deviceChoice').hidden=mode!=='choice';
@@ -1373,8 +1026,8 @@ function finishSignIn({session,account}){
   phoneRequest=null;
   $('enableAccess').hidden=!isPhone;
   showProfileEditor(false);
-  selectPanel(openRoomAfterLogin?'room':'overview');
-  openRoomAfterLogin=false;
+  if(returnToRoom){location.replace(roomDestination);return}
+  selectPanel('overview');
   renderAccount(account);
   welcome(account.name);
   if(!remembered&&$('rememberDevice').checked)panelMessage('No se pudo recordar la sesión en este navegador.');
@@ -1573,9 +1226,7 @@ $('enableAccess').onclick=scanFromPanel;
 $('backToDevice').onclick=()=>{cancelRequest();showChoices()};
 $('cancelRegistration').onclick=()=>{cancelRequest();showScreen('home')};
 $('logoutButton').onclick=()=>{
-  if(sessionToken&&!canLeaveRoom())return;
-  resetRoom();
-  activePanel='overview';
+  selectPanel('overview');
   const remembered=rememberedSession();
   if(sessionToken)api('/logout',{token:sessionToken}).catch(()=>{});
   if(remembered&&remembered!==sessionToken)api('/logout',{token:remembered}).catch(()=>{});
@@ -1590,7 +1241,7 @@ $('logoutButton').onclick=()=>{
   cancelRequest();
   showScreen('home');
 };
-function showScreen(id){if(id==='dashboard'&&location.pathname!==panelPath&&!isRoomPath(location.pathname))history.replaceState(null,'',panelPath);if(id==='home'&&(location.pathname===panelPath||isRoomPath(location.pathname)))history.replaceState(null,'',homePath);for(const el of document.querySelectorAll('.screen'))el.hidden=el.id!==id;window.scrollTo(0,0)};
+function showScreen(id){if(id==='dashboard'&&location.pathname!==panelPath)history.replaceState(null,'',panelPath);if(id==='home'&&(location.pathname===panelPath))history.replaceState(null,'',homePath);for(const el of document.querySelectorAll('.screen'))el.hidden=el.id!==id;window.scrollTo(0,0)};
 let prevTime=-1;function tick(){if(video.readyState>=2&&landmarker){try{if(video.currentTime!==prevTime){prevTime=video.currentTime;lastResult=landmarker.detectForVideo(video,performance.now())}ctx.clearRect(0,0,overlay.width,overlay.height)}catch(e){console.error(e)}}if(stream)requestAnimationFrame(tick)}
 function wait(ms){return new Promise(r=>setTimeout(r,ms))}
 function setStep(n,t,d){const p=Math.min(n,5);const phases=[['👀','Mirá al frente'],['👉','Girá a la derecha'],['👈','Girá a la izquierda'],['⬆️','Mirá hacia arriba'],['⬇️','Mirá hacia abajo'],['✅','Verificación completada']];$('camera').dataset.phase=String(p);$('phaseCard').hidden=false;$('phaseEmoji').textContent=phases[p][0];$('phaseLabel').textContent=phases[p][1];$('phaseCount').textContent=p<5?'PASO '+(p+1)+' DE 5':'LISTO';setVerificationProgress(p*20);status(t,d);$('camera').classList.toggle('good',n>0);if(n===1)say('Girá la cabeza hacia tu derecha.');if(n===2)say('Ahora girá hacia tu izquierda.');if(n===3&&t.startsWith('Parpadeá'))say('Parpadeá una vez.')}
@@ -1706,9 +1357,9 @@ if(incoming){
 }else if(sessionToken){
   refreshAccount().then(account=>{
     sessionStorage.setItem(sessionKey,sessionToken);
+    if(returnToRoom){location.replace(roomDestination);return}
     $('enableAccess').hidden=!isPhone;
     welcome(account.name);
-    if(openRoomAfterLogin){selectPanel('room');openRoomAfterLogin=false}
     refreshFaceCredential();
   }).catch(error=>{
     if(error.status===401){
@@ -1721,7 +1372,7 @@ if(incoming){
     $('homeStatus').textContent=error.status===401?'Tu sesión venció. Volvé a ingresar.':error.message;
     $('homeStatus').hidden=false;
   });
-}else if(location.pathname===panelPath||isRoomPath(location.pathname)){
+}else if(location.pathname===panelPath){
   showScreen('home');
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&stream&&!$('verify').hidden){video.play().catch(()=>{})}});document.addEventListener('visibilitychange',()=>{

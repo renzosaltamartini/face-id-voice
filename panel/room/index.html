@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Room · Renx</title>
+  <link rel="stylesheet" href="/face-id-voice/panel/room/room.css">
+  <script src="/face-id-voice/shared/session.js" defer></script>
+  <script src="/face-id-voice/panel/room/editor.js" defer></script>
+  <script src="/face-id-voice/panel/room/room.js" defer></script>
+</head>
+<body>
+  <div class="layout" id="layout">
+    <aside class="sidebar" id="sidebar" aria-label="Room">
+      <div class="sidebar-tools">
+        <button class="icon-button" id="hideSidebar" aria-label="Ocultar barra lateral" title="Ocultar barra lateral" data-icon="sidebar"></button>
+        <button class="icon-button" id="recentPages" aria-label="Páginas recientes" title="Páginas recientes" data-icon="inbox" data-ready disabled></button>
+        <button class="icon-button" id="quickPage" aria-label="Nueva página" title="Nueva página" data-icon="edit" data-ready disabled></button>
+      </div>
+      <button class="search-trigger" id="searchPages" data-ready disabled>
+        <span>Buscar páginas</span><kbd id="searchShortcut">Ctrl+K</kbd>
+      </button>
+      <nav class="shortcuts" aria-label="Accesos de Room">
+        <button class="sidebar-row home-button" id="roomHome" data-icon="home" data-ready disabled>Inicio</button>
+        <button class="sidebar-row" id="newPage" data-icon="edit" data-ready disabled>Nueva página</button>
+        <button class="sidebar-row" id="library" data-icon="library" data-ready disabled>Biblioteca</button>
+      </nav>
+      <div class="sidebar-scroll">
+        <section class="sidebar-group" aria-labelledby="foldersLabel">
+          <div class="group-heading">
+            <h2 id="foldersLabel">Carpetas</h2>
+            <button class="icon-button" id="newFolder" aria-label="Nueva carpeta" title="Nueva carpeta" data-icon="plus" data-ready disabled></button>
+          </div>
+          <div id="folders"></div>
+        </section>
+        <section class="sidebar-group" aria-labelledby="privateLabel">
+          <div class="group-heading">
+            <h2 id="privateLabel">Privado</h2>
+            <button class="icon-button" id="newPrivatePage" aria-label="Nueva página privada" title="Nueva página privada" data-icon="plus" data-ready disabled></button>
+          </div>
+          <div id="pages"></div>
+        </section>
+      </div>
+      <a class="sidebar-row panel-link" id="panelLink" href="/face-id-voice/panel" data-icon="panel">Volver al panel</a>
+      <div class="workspace">
+        <span class="avatar" id="workspaceInitial" aria-hidden="true">R</span>
+        <span class="workspace-name" id="workspaceName">Room</span>
+      </div>
+    </aside>
+    <button class="sidebar-backdrop" id="sidebarBackdrop" aria-label="Cerrar barra lateral" hidden></button>
+
+    <main class="main" id="main">
+      <header class="page-bar">
+        <button class="icon-button" id="showSidebar" aria-label="Mostrar barra lateral" title="Mostrar barra lateral" aria-controls="sidebar" aria-expanded="false" data-icon="sidebar" hidden></button>
+        <div class="breadcrumb" id="breadcrumb" hidden>
+          <span id="pageLabel"></span>
+          <span class="privacy" data-icon="lock">Privada</span>
+        </div>
+        <div class="page-actions" id="pageActions" hidden>
+          <span class="edited" id="editedAt"></span>
+          <button class="bar-button" id="sharePage" data-icon="lock" hidden>Compartir</button>
+          <button class="icon-button" id="pageMenu" aria-label="Opciones de página" title="Opciones de página" data-icon="more"></button>
+        </div>
+      </header>
+
+      <div class="status" id="status" role="status" hidden></div>
+      <div class="load-error" id="loadError" hidden>
+        <p id="loadErrorText"></p><button class="bar-button" id="retryLoad">Reintentar</button>
+      </div>
+
+      <article class="document" id="document" hidden>
+        <textarea class="page-title" id="title" rows="1" maxlength="120" placeholder="Nueva página" aria-label="Título de la página"></textarea>
+        <div class="blocks" id="blocks" aria-label="Bloques de la página"></div>
+        <div class="starter" id="starter" hidden>
+          <div class="starter-caption">Elige una opción</div>
+          <div class="starter-actions">
+            <button data-start="text" data-icon="edit">Iniciar un borrador</button>
+            <button data-start="todo" data-icon="todo">Lista de tareas</button>
+            <button data-start="bullet" data-icon="bullet">Lista con viñetas</button>
+            <button data-start="h1" data-icon="heading">Encabezado</button>
+            <button data-start="menu" data-icon="more" aria-label="Más bloques" title="Más bloques"></button>
+          </div>
+        </div>
+      </article>
+    </main>
+  </div>
+
+  <div class="block-picker" id="blockPicker" hidden>
+    <input id="blockFilter" type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="blockOptions" autocomplete="off" placeholder="Escribe para filtrar..." aria-label="Filtrar bloques">
+    <div class="picker-card">
+      <div class="block-options" id="blockOptions" role="listbox" aria-label="Tipos de bloque"></div>
+      <button id="closeBlockPicker" class="picker-footer">Cerrar menú <kbd>esc</kbd></button>
+    </div>
+  </div>
+
+  <dialog class="dialog search-dialog" id="searchDialog" aria-label="Buscar páginas">
+    <input id="searchInput" type="search" autocomplete="off" placeholder="Buscar páginas..." aria-label="Buscar por título">
+    <div id="searchResults" class="search-results"></div>
+  </dialog>
+
+  <dialog class="dialog" id="folderDialog" aria-labelledby="folderDialogTitle">
+    <form id="folderForm">
+      <h2 id="folderDialogTitle">Nueva carpeta</h2>
+      <label for="folderName">Nombre</label>
+      <input id="folderName" maxlength="70" required autocomplete="off">
+      <p id="folderError" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button class="bar-button" id="cancelFolder" type="button">Cancelar</button>
+        <button class="bar-button primary" id="saveFolder" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="dialog" id="actionsDialog" aria-labelledby="actionsTitle">
+    <h2 id="actionsTitle"></h2>
+    <div id="actionList"></div>
+  </dialog>
+
+  <dialog class="dialog" id="shareDialog" aria-labelledby="shareTitle">
+    <h2 id="shareTitle">Compartir</h2>
+    <p>Este enlace abre la página en tu cuenta de Renx.</p>
+    <input id="shareUrl" type="url" aria-label="Enlace privado" readonly>
+    <div class="dialog-actions">
+      <button class="bar-button primary" id="copyLink">Copiar enlace</button>
+    </div>
+  </dialog>
+</body>
+</html>
