@@ -129,7 +129,7 @@
     <article class="panel-card"><h2>Correo electrónico</h2><p><span class="email-state" id="emailState">Email no verificado</span></p><button class="primary" type="button" id="sendVerification">Verificar correo</button></article>
     <article class="panel-card"><h2>Acceso a tu cuenta</h2><p>Revisá las sesiones abiertas o autorizá el ingreso en una computadora.</p><button class="secondary" type="button" data-open-devices>Ver dispositivos</button><button class="secondary" id="enableAccess" type="button" hidden>Habilitar acceso</button>
     <button class="secondary" id="addPasskey" type="button" hidden>Guardar clave en este dispositivo</button></article>
-    <article class="panel-card"><h2>Reconocimiento facial</h2><p>Guardá una referencia de tu rostro en este navegador para encontrar tu cuenta con la cámara. Al ingresar, confirmás con tu clave de acceso.</p><button class="secondary" id="saveFace" type="button">Guardar mi rostro</button><button class="secondary" id="deleteFace" type="button" hidden>Borrar el rostro guardado</button></article>
+    <article class="panel-card"><h2>Reconocimiento facial</h2><p>Tu referencia facial se guarda automáticamente en el navegador que usaste para verificarte. Al ingresar, confirmás con tu clave de acceso.</p><button class="secondary" id="deleteFace" type="button" hidden>Borrar el rostro guardado</button></article>
   </div>
   <article class="panel-card" id="panel-devices" hidden>
     <h2>Dispositivos conectados</h2><p>Sesiones abiertas de tu cuenta. Podés cerrar el acceso en otro dispositivo.</p>
@@ -190,7 +190,10 @@ profileForm.addEventListener('submit',async event=>{
   $('nextProfile').disabled=true;
   try{
     const result=await api('/finish',{id:desktopRequest.id,token:desktopRequest.desktop,profile});
+    const shouldSave=Boolean(phoneRequest?.registeredCredential);
+    const saved=saveRegistrationFace(phoneRequest);
     finishSignIn(result);
+    if(shouldSave&&!saved)panelMessage('La cuenta se creó. El navegador no pudo guardar la referencia facial.');
   }catch(error){
     $('locationHelp').textContent=error.message;
   }finally{
@@ -260,12 +263,15 @@ async function captureFace(operation){
   const preview=$('faceRecognitionVideo');
   preview.srcObject=media;
   await preview.play();
+  return collectFaceSamples(preview,()=>faceOperation===operation);
+}
+async function collectFaceSamples(preview,isActive){
   const model=await loadFaceModel();
   const samples=[];
   const deadline=Date.now()+12000;
-  while(faceOperation===operation&&Date.now()<deadline){
+  while(isActive()&&Date.now()<deadline){
     const result=await model.detect(preview);
-    if(faceOperation!==operation)return;
+    if(!isActive())return;
     if(result.face.length===1&&result.face[0].embedding?.length){
       const sample=Array.from(result.face[0].embedding);
       if(sample.every(Number.isFinite))samples.push(sample);
@@ -275,7 +281,7 @@ async function captureFace(operation){
     }
     await wait(350);
   }
-  if(faceOperation===operation)throw Error('Ubicá un solo rostro frente a la cámara, con buena luz, y volvé a intentar.');
+  if(isActive())throw Error('Ubicá un solo rostro frente a la cámara, con buena luz, y volvé a intentar.');
 }
 function bestFaceMatch(model,samples,faces){
   const candidates=faces.map(face=>({
@@ -286,29 +292,28 @@ function bestFaceMatch(model,samples,faces){
   const [best,next]=candidates;
   return best&&best.score>=.65&&(!next||best.score-next.score>=.08)?best.id:null;
 }
-async function runFaceRecognition(enroll,registration=false){
+function saveRegistrationFace(request){
+  if(!request?.faceSamples||!request.registeredCredential)return false;
+  try{
+    const id=request.registeredCredential;
+    const faces=savedFaces().filter(face=>face.id!==id);
+    localStorage.setItem(faceStorageKey,JSON.stringify([{id,samples:request.faceSamples},...faces].slice(0,8)));
+    request.faceSamples=null;
+    updateFaceButtons();
+    return true;
+  }catch{return false}
+}
+async function runFaceRecognition(registration=false){
   if(faceOperation)return;
-  const operation={enroll};
+  const operation={};
   faceOperation=operation;
   showScreen('verify');
   showVerificationMode('face');
-  $('faceRecognitionTitle').textContent=enroll?'Guardá tu rostro':'Reconocé tu rostro';
+  $('faceRecognitionTitle').textContent='Reconocé tu rostro';
   $('faceRecognitionInstructions').textContent='Mirá a la cámara. La comparación se hace en este navegador.';
   try{
-    const account=enroll?await api('/face/credential',{token:sessionToken}):null;
-    if(faceOperation!==operation)return;
     const result=await captureFace(operation);
     if(!result||faceOperation!==operation)return;
-    if(enroll){
-      const faces=savedFaces().filter(face=>face.id!==account.id);
-      localStorage.setItem(faceStorageKey,JSON.stringify([{id:account.id,samples:result.samples},...faces].slice(0,8)));
-      stopFaceRecognition();
-      accountCredential=account.id;
-      updateFaceButtons();
-      showScreen('dashboard');
-      panelMessage('Rostro guardado en este navegador.');
-      return;
-    }
     const id=bestFaceMatch(result.model,result.samples,savedFaces());
     stopFaceRecognition();
     if(!id){
@@ -321,12 +326,11 @@ async function runFaceRecognition(enroll,registration=false){
   }catch(error){
     if(faceOperation!==operation)return;
     stopFaceRecognition();
-    if(enroll){showScreen('dashboard');panelMessage(error.message)}
-    else{showChoices();notify(error.message)}
+    showChoices();
+    notify(error.message);
   }
 }
-$('saveFace').onclick=()=>runFaceRecognition(true);
-$('recognizeFace').onclick=()=>runFaceRecognition(false);
+$('recognizeFace').onclick=()=>runFaceRecognition();
 $('deleteFace').onclick=()=>{
   try{
     localStorage.setItem(faceStorageKey,JSON.stringify(savedFaces().filter(face=>face.id!==accountCredential)));
@@ -557,10 +561,12 @@ function startFace(){
   lastSpoken='';
   neutralPitch=null;
   setStep(0,'Preparando cámara…');
+  notify('Durante el registro guardaremos una referencia facial en este navegador.');
   startCamera();
 }
 async function approvePhone(){
-  const {id,token,purpose,credentialId}=phoneRequest;
+  const request=phoneRequest;
+  const {id,token,purpose,credentialId}=request;
   const optionsJSON=await api('/options',{id,token,credentialId});
   if(!window.SimpleWebAuthnBrowser)throw Error('No se pudo cargar el servicio de claves de acceso.');
   const {startRegistration,startAuthentication}=window.SimpleWebAuthnBrowser;
@@ -569,15 +575,20 @@ async function approvePhone(){
     response=await (purpose==='registration'?startRegistration:startAuthentication)({optionsJSON});
   }catch{throw Error('No se pudo usar una clave de acceso. Si tu cuenta está en el celular, volvé e ingresá por QR.')}
   await api('/approve',{id,token,response});
+  if(phoneRequest!==request)return;
+  if(purpose==='registration')request.registeredCredential=response.id;
   if(desktopRequest?.id===id){
     if(purpose==='registration')openProfile();
     else finishSignIn(await api('/finish',{id,token:desktopRequest.desktop}));
     return;
   }
+  const saved=purpose==='registration'&&saveRegistrationFace(request);
   phoneRequest=null;
   showVerificationMode('approval');
   $('phoneApprovalTitle').textContent='Confirmación enviada';
-  $('phoneApprovalText').textContent='Volvé a la computadora para continuar.';
+  $('phoneApprovalText').textContent=purpose==='registration'
+    ?(saved?'Tu referencia facial quedó guardada en este navegador. ':'El navegador no pudo guardar la referencia facial. ')+'Volvé a la computadora para terminar el registro.'
+    :'Volvé a la computadora para continuar.';
   $('confirmPhone').hidden=true;
 }
 function readQR(value){
@@ -665,7 +676,7 @@ $('existingAccount').onclick=()=>{
   showChoices();
   begin('sign-in');
 };
-$('verifyPhone').onclick=()=>isPhone&&savedFaces().length?runFaceRecognition(false,true):begin('registration');
+$('verifyPhone').onclick=()=>isPhone&&savedFaces().length?runFaceRecognition(true):begin('registration');
 $('enableAccess').onclick=scanFromPanel;
 $('backToDevice').onclick=()=>{cancelRequest();showChoices()};
 $('cancelRegistration').onclick=()=>{cancelRequest();showScreen('home')};
@@ -755,7 +766,16 @@ async function flow(){
     await awaitPitch(1);
     if(phoneRequest!==current)return;
     setStep(5,'Verificación completada','');
-    await wait(650);
+    $('phaseLabel').textContent='Volvé a mirar al frente';
+    notify('Estamos preparando tu referencia facial para este navegador.');
+    try{
+      await wait(650);
+      if(phoneRequest!==current)return;
+      const captured=await collectFaceSamples(video,()=>phoneRequest===current);
+      if(captured)current.faceSamples=captured.samples;
+    }catch{
+      current.faceSamples=null;
+    }
     if(phoneRequest!==current)return;
     currentStream?.getTracks().forEach(track=>track.stop());
     stream=null;
