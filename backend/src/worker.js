@@ -6,23 +6,14 @@ import {
 } from '@simplewebauthn/server';
 import qrcode from 'qrcode-generator';
 
-const origin = 'https://renzosaltamartini.github.io';
-const site = origin + '/face-id-voice/';
-const rpID = new URL(origin).hostname;
+const legacyOrigin = 'https://renzosaltamartini.github.io';
+const sitePath = '/face-id-voice/';
 const encoder = new TextEncoder();
 const token = () => toBase64(crypto.getRandomValues(new Uint8Array(32)));
 const toBase64 = bytes => btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
 const fromBase64 = value => Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')), char => char.charCodeAt(0));
 const hash = async value => toBase64(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value))));
 const validToken = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
-const cors = {
-  'Access-Control-Allow-Origin': origin,
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Cache-Control': 'no-store',
-};
-const json = (value, status = 200) => Response.json(value, { status, headers: cors });
-const fail = (status, message) => json({ error: message }, status);
 
 function deviceName(request) {
   const ua = request.headers.get('User-Agent') || '';
@@ -51,8 +42,18 @@ function profileFrom(input) {
 }
 
 export default {
-  async fetch(request, { DB, BREVO_API_KEY, NOVA_EMAIL_FROM }) {
-    if (request.headers.get('Origin') !== origin) return fail(403, 'Origen no autorizado.');
+  async fetch(request, { DB, BREVO_API_KEY, NOVA_EMAIL_FROM, NOVA_WEB_ORIGIN }) {
+    const origin = request.headers.get('Origin');
+    if (!origin || (origin !== legacyOrigin && origin !== NOVA_WEB_ORIGIN)) {
+      return Response.json({ error: 'Origen no autorizado.' }, { status: 403 });
+    }
+    const rpID = new URL(origin).hostname;
+    const cors = {
+      'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Cache-Control': 'no-store', Vary: 'Origin',
+    };
+    const json = (value, status = 200) => Response.json(value, { status, headers: cors });
+    const fail = (status, message) => json({ error: message }, status);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
     if (request.method !== 'POST') return fail(405, 'Método no disponible.');
     const query = (sql, ...parameters) => DB.prepare(sql).bind(...parameters);
@@ -64,14 +65,16 @@ export default {
       const route = new URL(request.url).pathname;
       if (route === '/new') {
         if (!['sign-in', 'registration'].includes(body.purpose)) return fail(400, 'Opción incorrecta.');
+        const legacy = body.legacy === true && origin === NOVA_WEB_ORIGIN && body.purpose === 'sign-in';
+        const phoneOrigin = legacy ? legacyOrigin : origin;
         const id = token(), desktop = token(), phone = token(), expires = now + 5 * 60_000;
         await DB.batch([
           query('DELETE FROM qr_requests WHERE expires_at < ?', now),
           query('DELETE FROM sessions WHERE expires_at < ?', now),
-          query('INSERT INTO qr_requests (id, desktop_token_hash, phone_token_hash, purpose, expires_at) VALUES (?, ?, ?, ?, ?)',
-            id, await hash(desktop), await hash(phone), body.purpose, expires),
+          query(`INSERT INTO qr_requests (id, desktop_token_hash, phone_token_hash, purpose, expires_at, desktop_origin, phone_origin)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`, id, await hash(desktop), await hash(phone), body.purpose, expires, origin, phoneOrigin),
         ]);
-        const url = new URL(site);
+        const url = new URL(sitePath, phoneOrigin);
         url.hash = 'qr=' + id + '.' + phone;
         const qr = qrcode(0, 'M');
         qr.addData(url.href);
@@ -89,7 +92,7 @@ export default {
         ]);
         return result.meta.changes === 1 ? json({ verified: true }) : fail(410, 'El enlace venció o ya fue usado.');
       }
-      if (['/me', '/logout', '/devices', '/devices/revoke', '/email/send'].includes(route)) {
+      if (['/me', '/logout', '/devices', '/devices/revoke', '/email/send', '/passkey/options', '/passkey/register'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -100,6 +103,40 @@ export default {
           a.email_verified_at AS emailVerifiedAt, a.age, a.sex, a.nationality AS country, a.province, a.locality AS city
           FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`, key, now).first();
         if (!account) return fail(401, 'Volvé a iniciar sesión.');
+        if (route === '/passkey/options') {
+          if (origin !== NOVA_WEB_ORIGIN) return fail(403, 'Abrí la nueva dirección de Nova.');
+          const options = await generateRegistrationOptions({
+            rpName: 'Nova', rpID, userName: account.email, userID: encoder.encode(account.id),
+            attestationType: 'none', supportedAlgorithmIDs: [-7, -257],
+            authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
+          });
+          await query('UPDATE sessions SET passkey_challenge = ?, passkey_challenge_expires_at = ? WHERE token_hash = ?',
+            options.challenge, now + 5 * 60_000, key).run();
+          return json(options);
+        }
+        if (route === '/passkey/register') {
+          if (origin !== NOVA_WEB_ORIGIN) return fail(403, 'Abrí la nueva dirección de Nova.');
+          const session = await query(`SELECT passkey_challenge AS challenge FROM sessions
+            WHERE token_hash = ? AND expires_at > ? AND passkey_challenge_expires_at > ?`, key, now, now).first();
+          if (!session?.challenge) return fail(410, 'Volvé a iniciar la creación de la clave.');
+          let result;
+          try {
+            result = await verifyRegistrationResponse({ response: body.response, expectedChallenge: session.challenge,
+              expectedOrigin: origin, expectedRPID: rpID, requireUserVerification: true });
+          } catch {
+            return fail(401, 'No se pudo confirmar la clave.');
+          }
+          if (!result.verified) return fail(401, 'No se pudo confirmar la clave.');
+          const { id, publicKey, counter } = result.registrationInfo.credential;
+          const [created] = await DB.batch([
+            query(`INSERT INTO passkeys (id, account_id, public_key, counter, rp_id)
+              SELECT ?, account_id, ?, ?, ? FROM sessions WHERE token_hash = ? AND passkey_challenge = ?
+                AND expires_at > ? AND passkey_challenge_expires_at > ?`, id, toBase64(publicKey), counter, rpID, key, session.challenge, now, now),
+            query(`UPDATE sessions SET passkey_challenge = NULL, passkey_challenge_expires_at = NULL
+              WHERE token_hash = ? AND passkey_challenge = ?`, key, session.challenge),
+          ]);
+          return created.meta.changes ? json({ added: true }) : fail(410, 'Volvé a iniciar la creación de la clave.');
+        }
         if (route === '/devices') {
           await query(`UPDATE sessions SET device_id = lower(hex(randomblob(21))) || '0',
             device_name = CASE WHEN token_hash = ? THEN ? ELSE 'Sesión anterior' END
@@ -124,7 +161,7 @@ export default {
             expires_at = excluded.expires_at, sent_at = excluded.sent_at WHERE email_verifications.sent_at <= ?`,
           account.id, digest, now + 30 * 60_000, now, now - 60_000).run();
           if (!sent.meta.changes) return fail(429, 'Esperá un minuto antes de pedir otro correo.');
-          const url = site + '#verify-email=' + secret;
+          const url = new URL(sitePath + '#verify-email=' + secret, NOVA_WEB_ORIGIN || legacyOrigin).href;
           try {
             const delivered = await fetch('https://api.brevo.com/v3/smtp/email', {
               method: 'POST', headers: { 'api-key': BREVO_API_KEY, 'content-type': 'application/json' },
@@ -149,8 +186,9 @@ export default {
       const tokenHash = await hash(body.token);
       const isDesktop = ['/status', '/finish'].includes(route);
       const handoff = await query(`SELECT * FROM qr_requests
-        WHERE id = ? AND ${isDesktop ? 'desktop_token_hash' : 'phone_token_hash'} = ? AND expires_at > ? AND consumed_at IS NULL`,
-      body.id, tokenHash, now).first();
+        WHERE id = ? AND ${isDesktop ? 'desktop_token_hash' : 'phone_token_hash'} = ?
+          AND ${isDesktop ? 'desktop_origin' : 'phone_origin'} = ? AND expires_at > ? AND consumed_at IS NULL`,
+      body.id, tokenHash, origin, now).first();
       if (!handoff) return fail(410, 'El código venció o ya fue usado.');
       if (route === '/status') return json({ approved: Boolean(handoff.approved_at) });
       if (route === '/phone') return json({ purpose: handoff.purpose, approved: Boolean(handoff.approved_at) });
@@ -180,7 +218,7 @@ export default {
             const { id, publicKey, counter } = result.registrationInfo.credential;
             pending = JSON.stringify({ id, key: toBase64(publicKey), counter });
           } else {
-            const passkey = await query('SELECT * FROM passkeys WHERE id = ?', body.response?.id ?? '').first();
+            const passkey = await query('SELECT * FROM passkeys WHERE id = ? AND rp_id = ?', body.response?.id ?? '', rpID).first();
             if (!passkey) return fail(401, 'La clave de acceso no pertenece a una cuenta de Nova.');
             const result = await verifyAuthenticationResponse({
               ...expected, response: body.response,
@@ -211,9 +249,9 @@ export default {
         commands.push(query(`INSERT INTO accounts (id, email, given_name, family_name, age, sex, nationality, province, locality, created_at)
           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM qr_requests WHERE id = ? AND consumed_at IS NULL AND expires_at > ?`,
         accountId, data.email, data.name, data.surname, data.age, data.sex, data.country, data.province, data.city, now, handoff.id, now));
-        commands.push(query(`INSERT INTO passkeys (id, account_id, public_key, counter)
-          SELECT ?, ?, ?, ? FROM qr_requests WHERE id = ? AND consumed_at IS NULL AND expires_at > ?`,
-        passkey.id, accountId, passkey.key, passkey.counter, handoff.id, now));
+        commands.push(query(`INSERT INTO passkeys (id, account_id, public_key, counter, rp_id)
+          SELECT ?, ?, ?, ?, ? FROM qr_requests WHERE id = ? AND consumed_at IS NULL AND expires_at > ?`,
+        passkey.id, accountId, passkey.key, passkey.counter, new URL(handoff.phone_origin).hostname, handoff.id, now));
       }
       commands.push(query(`UPDATE qr_requests SET consumed_at = ?, redeem_hash = ?, pending_credential = NULL
         WHERE id = ? AND consumed_at IS NULL AND approved_at IS NOT NULL AND expires_at > ?`, now, sessionHash, handoff.id, now));

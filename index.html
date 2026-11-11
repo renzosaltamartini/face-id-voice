@@ -75,6 +75,7 @@
   <p id="devicePrompt">Elegí cómo continuar.</p>
   <button class="primary" id="verifyHere" type="button">Iniciar sesión</button>
   <button class="secondary" id="verifyThisDevice" type="button" hidden>Ingresar con este dispositivo</button>
+  <button class="secondary" id="migrateAccount" type="button" hidden>Vincular mi cuenta anterior</button>
   <button class="secondary" id="verifyPhone" type="button">Registrarme</button>
 </div>
 <div class="phase-top" id="phaseCard" aria-live="polite"><span class="phase-emoji" id="phaseEmoji">👀</span><span class="phase-label" id="phaseLabel">Mirá al frente</span><span class="phase-count" id="phaseCount">PASO 1 DE 5</span></div><div class="camera" id="camera"><video id="video" autoplay playsinline muted></video><canvas id="overlay"></canvas><svg class="face-guide" viewBox="0 0 320 332" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -120,7 +121,8 @@
   <p class="nova-message" id="panelMessage" role="status" hidden></p>
   <div id="panel-overview" class="panel-cards">
     <article class="panel-card"><h2>Correo electrónico</h2><p><span class="email-state" id="emailState">Email no verificado</span></p><button class="primary" type="button" id="sendVerification">Verificar correo</button></article>
-    <article class="panel-card"><h2>Acceso a tu cuenta</h2><p>Revisá las sesiones abiertas o autorizá el ingreso en una computadora.</p><button class="secondary" type="button" data-open-devices>Ver dispositivos</button><button class="secondary" id="enableAccess" type="button" hidden>Habilitar acceso</button></article>
+    <article class="panel-card"><h2>Acceso a tu cuenta</h2><p>Revisá las sesiones abiertas o autorizá el ingreso en una computadora.</p><button class="secondary" type="button" data-open-devices>Ver dispositivos</button><button class="secondary" id="enableAccess" type="button" hidden>Habilitar acceso</button>
+    <button class="secondary" id="addPasskey" type="button" hidden>Guardar clave en este dispositivo</button></article>
   </div>
   <article class="panel-card" id="panel-devices" hidden>
     <h2>Dispositivos conectados</h2><p>Sesiones abiertas de tu cuenta. Podés cerrar el acceso en otro dispositivo.</p>
@@ -199,6 +201,22 @@ const sessionKey='nova-session-v1';
 let desktopRequest=null,phoneRequest=null,scannerStream=null,pollTimer=null;
 let sessionToken=sessionStorage.getItem(sessionKey);
 const homePath='/face-id-voice/';
+const isNewSite=location.hostname!=='renzosaltamartini.github.io';
+$('migrateAccount').hidden=!isNewSite;
+$('addPasskey').hidden=!isNewSite;
+$('addPasskey').onclick=async()=>{
+  const button=$('addPasskey');
+  button.disabled=true;
+  panelMessage();
+  try{
+    const optionsJSON=await api('/passkey/options',{token:sessionToken});
+    if(!window.SimpleWebAuthnBrowser)throw Error('No se pudo cargar el servicio de claves de acceso.');
+    const response=await window.SimpleWebAuthnBrowser.startRegistration({optionsJSON});
+    await api('/passkey/register',{token:sessionToken,response});
+    panelMessage('Clave guardada. La próxima vez podés ingresar desde esta dirección.');
+  }catch(error){panelMessage(error.message||'No se pudo guardar la clave.')}
+  finally{button.disabled=false}
+};
 const panelPath=homePath+'panel';
 const panelButtons=[...document.querySelectorAll('[data-panel]')];
 function panelMessage(message=''){
@@ -364,11 +382,11 @@ async function waitForPhone(request){
     }
   }
 }
-async function begin(purpose,onThisDevice=isPhone){
-  $('verifyHere').disabled=$('verifyPhone').disabled=$('verifyThisDevice').disabled=true;
+async function begin(purpose,onThisDevice=isPhone,legacy=false){
+  $('verifyHere').disabled=$('verifyPhone').disabled=$('verifyThisDevice').disabled=$('migrateAccount').disabled=true;
   notify();
   try{
-    const request={...await api('/new',{purpose}),purpose};
+    const request={...await api('/new',{purpose,legacy}),purpose};
     if($('verify').hidden)return;
     desktopRequest=request;
     if(onThisDevice){
@@ -378,14 +396,16 @@ async function begin(purpose,onThisDevice=isPhone){
       return;
     }
     showVerificationMode('qr');
-    $('qrTitle').textContent=purpose==='registration'?'Registrate desde la computadora':'Autorizá el ingreso';
-    $('qrInstructions').textContent=purpose==='registration'
+    $('qrTitle').textContent=legacy?'Vinculá tu cuenta anterior':purpose==='registration'?'Registrate desde la computadora':'Autorizá el ingreso';
+    $('qrInstructions').textContent=legacy
+      ?'En el celular, entrá al panel de la dirección anterior de Nova. Tocá Habilitar acceso y escaneá este QR. Después, guardá una clave desde el nuevo panel.'
+      :purpose==='registration'
       ?'Escaneá el QR con tu celular, verificá tu rostro y volvé a esta pantalla para completar tus datos.'
       :'En el panel de Nova del celular, tocá Habilitar acceso y escaneá este QR.';
     $('qrImage').src=request.image;
     waitForPhone(request);
   }catch(error){notify(error.message)}
-  finally{$('verifyHere').disabled=$('verifyPhone').disabled=$('verifyThisDevice').disabled=false}
+  finally{$('verifyHere').disabled=$('verifyPhone').disabled=$('verifyThisDevice').disabled=$('migrateAccount').disabled=false}
 }
 function startFace(){
   showVerificationMode('camera');
@@ -495,6 +515,7 @@ function cancelRequest(){
 $('loginButton').onclick=showChoices;
 $('verifyHere').onclick=()=>begin('sign-in');
 $('verifyThisDevice').onclick=()=>begin('sign-in',true);
+$('migrateAccount').onclick=()=>begin('sign-in',false,true);
 $('existingAccount').onclick=()=>{
   cancelRequest();
   showChoices();
@@ -634,6 +655,8 @@ if(emailConfirmation){
     $('enableAccess').hidden=!isPhone;
     welcome(account.name);
   }).catch(()=>{sessionToken=null;sessionStorage.removeItem(sessionKey);showScreen('home')});
+}else if(location.pathname===panelPath){
+  showScreen('home');
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&stream&&!$('verify').hidden){video.play().catch(()=>{})}});document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&sessionToken&&!$('dashboard').hidden)refreshAccount().catch(()=>{});

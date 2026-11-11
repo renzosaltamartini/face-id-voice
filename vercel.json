@@ -1,0 +1,41 @@
+{
+  "framework": null,
+  "buildCommand": "node scripts/build-vercel.cjs",
+  "outputDirectory": "public",
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/face-id-voice/",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/face-id-voice/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/face-id-voice",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/face-id-voice/panel",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    }
+  ]
+}
