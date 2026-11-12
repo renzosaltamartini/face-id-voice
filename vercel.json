@@ -23,6 +23,18 @@
       "destination": "/index.html"
     },
     {
+      "source": "/panel",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/panel/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/face-id-voice/panel/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/panel/room",
       "destination": "/panel/room/index.html"
     },
