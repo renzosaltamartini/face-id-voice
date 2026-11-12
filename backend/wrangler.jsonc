@@ -2,6 +2,7 @@
   "name": "nova-face-id",
   "main": "src/worker.js",
   "compatibility_date": "2026-11-11",
+  "compatibility_flags": ["nodejs_compat"],
   "keep_vars": true,
   "vars": {
     "NOVA_WEB_ORIGIN": "https://nova-face-id.vercel.app"

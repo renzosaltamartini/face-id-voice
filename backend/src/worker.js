@@ -1,3 +1,4 @@
+import { createHmac, pbkdf2, timingSafeEqual } from 'node:crypto';
 import {
   generateAuthenticationOptions,
   generateRegistrationOptions,
@@ -13,6 +14,17 @@ const toBase64 = bytes => btoa(String.fromCharCode(...bytes)).replaceAll('+', '-
 const fromBase64 = value => Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')), char => char.charCodeAt(0));
 const hash = async value => toBase64(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value))));
 const validToken = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
+
+const acceptablePassword = value => typeof value === 'string' && value.length >= 15 &&
+  value.length <= 128 && value.trim().length >= 15 && new Set(value).size >= 5;
+function derivePassword(password, salt, pepper) {
+  if (!pepper) throw Error('Password secret is unavailable');
+  const keyedPassword = createHmac('sha256', pepper).update(password).digest();
+  return new Promise((resolve, reject) => {
+    pbkdf2(keyedPassword, fromBase64(salt), 100_000, 32, 'sha256',
+      (error, result) => error ? reject(error) : resolve(result));
+  });
+}
 
 function deviceName(request) {
   const ua = request.headers.get('User-Agent') || '';
@@ -41,7 +53,7 @@ function profileFrom(input) {
 }
 
 export default {
-  async fetch(request, { DB, NOVA_WEB_ORIGIN }) {
+  async fetch(request, { DB, NOVA_WEB_ORIGIN, AUTH_PASSWORD_PEPPER }) {
     const origin = request.headers.get('Origin');
     if (!origin || origin !== NOVA_WEB_ORIGIN) {
       return Response.json({ error: 'Origen no autorizado.' }, { status: 403 });
@@ -75,6 +87,54 @@ export default {
       if (raw.length > 24_000) return fail(413, 'Solicitud demasiado grande.');
       const body = JSON.parse(raw);
       const route = new URL(request.url).pathname;
+      if (route === '/password/login' || route === '/password/delete-account') {
+        const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+        if (!email || email.length > 254 || typeof body.password !== 'string' ||
+            body.password.length < 1 || body.password.length > 128) return fail(401, 'El correo o la contraseña no coincide.');
+        const window = 15 * 60_000;
+        const ipBucket = 'ip:' + await hash(request.headers.get('CF-Connecting-IP') || 'unknown');
+        const accountBucket = 'account:' + await hash(email);
+        const throttle = bucket => query(`INSERT INTO password_attempts (bucket, started_at, attempts)
+          VALUES (?, ?, 1) ON CONFLICT(bucket) DO UPDATE SET
+          attempts = CASE WHEN started_at <= ? THEN 1 ELSE attempts + 1 END,
+          started_at = CASE WHEN started_at <= ? THEN excluded.started_at ELSE started_at END
+          RETURNING attempts`, bucket, now, now - window, now - window);
+        const [ip, perAccount] = await DB.batch([throttle(ipBucket), throttle(accountBucket),
+          query('DELETE FROM password_attempts WHERE started_at < ?', now - 86_400_000)]);
+        if (ip.results[0].attempts > 40 || perAccount.results[0].attempts > 10) {
+          return fail(429, 'Demasiados intentos. Volvé a probar en unos minutos.');
+        }
+        const account = await query(`SELECT id, given_name AS name, family_name AS surname, email, password_salt, password_hash
+          FROM accounts WHERE email = ?`, email).first();
+        const candidate = await derivePassword(body.password, account?.password_salt || 'AAAAAAAAAAAAAAAAAAAAAA', AUTH_PASSWORD_PEPPER);
+        const expected = account?.password_hash ? fromBase64(account.password_hash) : new Uint8Array(32);
+        if (!timingSafeEqual(candidate, expected) || !account?.password_hash ||
+            (body.faceAccountId && body.faceAccountId !== account.id)) return fail(401, 'El correo o la contraseña no coincide.');
+        if (route === '/password/delete-account') {
+          if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
+          const result = await query(`DELETE FROM accounts WHERE id = ? AND EXISTS (
+            SELECT 1 FROM sessions WHERE account_id = ? AND token_hash = ? AND expires_at > ?
+          )`, account.id, account.id, await hash(body.token), now).run();
+          return result.meta.changes ? json({ deleted: true, credentialIds: [account.id] }) : fail(401, 'Volvé a iniciar sesión.');
+        }
+        const session = token();
+        await DB.batch([
+          query(`INSERT INTO sessions (token_hash, account_id, expires_at, device_id, device_name, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)`, await hash(session), account.id, now + 7 * 86_400_000, token(), deviceName(request), now),
+          query('DELETE FROM password_attempts WHERE bucket = ?', accountBucket),
+        ]);
+        await logEvent(account.id, 'signed_in');
+        return json({ session, account: { id: account.id, name: account.name, surname: account.surname, email: account.email, hasPassword: true } });
+      }
+      if (route === '/registration/result') {
+        if (!validToken(body.id) || !validToken(body.token)) return fail(400, 'Solicitud inválida.');
+        const account = await query(`SELECT a.id, a.given_name AS name, a.family_name AS surname, a.email
+          FROM qr_requests q JOIN accounts a ON a.id = q.id
+          WHERE q.id = ? AND q.phone_token_hash = ? AND q.phone_origin = ?
+            AND q.purpose = 'registration' AND q.consumed_at IS NOT NULL AND q.expires_at > ?`,
+          body.id, await hash(body.token), origin, now).first();
+        return json({ account });
+      }
       if (route === '/room/shared/get' || route === '/room/shared/save') {
         if (!validToken(body.share)) return fail(404, 'Este enlace no está disponible.');
         if (route === '/room/shared/get') {
@@ -120,7 +180,7 @@ export default {
           return json({});
         }
         const account = await query(`SELECT a.id, a.given_name AS name, a.family_name AS surname, a.email,
-          a.email_verified_at AS emailVerifiedAt, a.age, a.sex, a.nationality AS country, a.province, a.locality AS city, a.created_at AS createdAt,
+          a.email_verified_at AS emailVerifiedAt, (a.password_hash IS NOT NULL) AS hasPassword, a.age, a.sex, a.nationality AS country, a.province, a.locality AS city, a.created_at AS createdAt,
           (SELECT COUNT(*) FROM sessions active WHERE active.account_id = a.id AND active.expires_at > ?) AS sessionCount,
           (SELECT COUNT(*) FROM passkeys p WHERE p.account_id = a.id AND p.rp_id = ?) AS passkeyCount
           FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`, now, rpID, key, now).first();
@@ -428,7 +488,7 @@ export default {
         delete account.id;
         return json(account);
       }
-      if (!['/status', '/finish', '/phone', '/options', '/approve', '/approve-session'].includes(route)) return fail(404, 'Opción no disponible.');
+      if (!['/status', '/finish', '/phone', '/options', '/approve', '/approve-session', '/registration/ready'].includes(route)) return fail(404, 'Opción no disponible.');
       if (!validToken(body.id) || !validToken(body.token)) return fail(400, 'Solicitud inválida.');
       const tokenHash = await hash(body.token);
       const isDesktop = ['/status', '/finish'].includes(route);
@@ -441,6 +501,12 @@ export default {
       if (route === '/phone') return json({ purpose: handoff.purpose, approved: Boolean(handoff.approved_at) });
 
       const registration = handoff.purpose === 'registration';
+      if (route === '/registration/ready') {
+        if (!registration) return fail(400, 'Solicitud inválida.');
+        const result = await query(`UPDATE qr_requests SET approved_at = ?, pending_credential = NULL, challenge = NULL
+          WHERE id = ? AND expires_at > ? AND consumed_at IS NULL AND approved_at IS NULL`, now, handoff.id, now).run();
+        return result.meta.changes ? json({ approved: true }) : fail(409, 'La solicitud ya se confirmó.');
+      }
       if (route === '/approve-session') {
         if (registration) return fail(400, 'Este código es para registrarte.');
         if (!validToken(body.session)) return fail(401, 'Iniciá sesión en el celular.');
@@ -510,13 +576,12 @@ export default {
       if (registration) {
         const data = profileFrom(body.profile);
         if (!data) return fail(400, 'Revisá los datos del registro.');
-        const passkey = JSON.parse(handoff.pending_credential);
-        commands.push(query(`INSERT INTO accounts (id, email, given_name, family_name, age, sex, nationality, province, locality, created_at)
-          SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM qr_requests WHERE id = ? AND consumed_at IS NULL AND expires_at > ?`,
-        accountId, data.email, data.name, data.surname, data.age, data.sex, data.country, data.province, data.city, now, handoff.id, now));
-        commands.push(query(`INSERT INTO passkeys (id, account_id, public_key, counter, rp_id, label, created_at)
-          SELECT ?, ?, ?, ?, ?, ?, ? FROM qr_requests WHERE id = ? AND consumed_at IS NULL AND expires_at > ?`,
-        passkey.id, accountId, passkey.key, passkey.counter, new URL(handoff.phone_origin).hostname, 'Clave de registro', now, handoff.id, now));
+        if (!acceptablePassword(body.password)) return fail(400, 'Elegí una contraseña de 15 a 128 caracteres con variedad.');
+        const salt = toBase64(crypto.getRandomValues(new Uint8Array(16)));
+        const verifier = toBase64(await derivePassword(body.password, salt, AUTH_PASSWORD_PEPPER));
+        commands.push(query(`INSERT INTO accounts (id, email, given_name, family_name, age, sex, nationality, province, locality, created_at, password_salt, password_hash)
+          SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM qr_requests WHERE id = ? AND consumed_at IS NULL AND expires_at > ?`,
+        accountId, data.email, data.name, data.surname, data.age, data.sex, data.country, data.province, data.city, now, salt, verifier, handoff.id, Date.now()));
       }
       commands.push(query(`UPDATE qr_requests SET consumed_at = ?, redeem_hash = ?, pending_credential = NULL
         WHERE id = ? AND consumed_at IS NULL AND approved_at IS NOT NULL AND expires_at > ?`, now, sessionHash, handoff.id, now));
@@ -526,7 +591,7 @@ export default {
       const result = await DB.batch(commands);
       if (result.at(-1).meta.changes !== 1) return fail(410, 'El código venció o ya fue usado.');
       await logEvent(accountId, registration ? 'account_created' : 'signed_in');
-      const account = await query('SELECT given_name AS name, family_name AS surname, email FROM accounts WHERE id = ?', accountId).first();
+      const account = await query('SELECT id, given_name AS name, family_name AS surname, email, (password_hash IS NOT NULL) AS hasPassword FROM accounts WHERE id = ?', accountId).first();
       return json({ session, account });
     } catch (error) {
       if (/UNIQUE constraint failed: accounts.email/i.test(String(error))) return fail(409, 'Ese correo ya está registrado.');

@@ -479,6 +479,12 @@ body{background:var(--site-bg)}
 <div class="qr-fallback" id="phoneApproval" hidden>
   <h2 id="phoneApprovalTitle"></h2>
   <p id="phoneApprovalText"></p>
+  <form id="passwordLogin" class="password-login" hidden>
+    <label>Correo<input id="loginEmail" type="email" autocomplete="username" maxlength="254" required></label>
+    <label>Contraseña<input id="loginPassword" type="password" autocomplete="current-password" maxlength="128" required></label>
+    <button class="primary" id="submitPasswordLogin" type="submit">Iniciar sesión</button>
+    <button class="secondary" id="legacyLogin" type="button" hidden>Ingresar a una cuenta anterior</button>
+  </form>
   <button class="primary" type="button" id="confirmPhone">Continuar</button>
   <button class="secondary" id="retryFaceAccount" type="button" hidden>No soy yo</button>
 </div>
@@ -493,7 +499,7 @@ body{background:var(--site-bg)}
 </div>
 <div class="qr-fallback" id="qrFallback" hidden><div class="qr-icon">▦</div><h2 id="qrTitle">Continuá desde tu celular</h2><p id="qrInstructions"></p><img id="qrImage" alt="Código QR para abrir Renx en el teléfono" width="190" height="190"><p class="qr-note">El código vence en cinco minutos.</p><button class="secondary" id="backToDevice" type="button">Volver a las opciones</button></div><div class="status" id="status" hidden></div><p class="detail" id="detail" hidden></p><div class="actions"><button class="primary" id="start" hidden>Continuar con cámara</button><button id="enroll" disabled>Registrar rostro</button><button id="verifyAction" disabled>Verificar identidad</button><button id="mute">Voz</button><button id="clear">Borrar</button></div></div></section>
 <section class="screen" id="registration" hidden><div class="registration-shell"><nav class="dash-head"><div class="logo"><span class="logo-mark">✦</span>renx.</div><button class="secondary" id="cancelRegistration">Cancelar</button></nav><div class="registration-intro"><div class="registration-check">✓</div><p>VERIFICACIÓN FACIAL COMPLETADA</p><h1>Creá tu cuenta</h1><span>Tu rostro ya fue verificado. Ahora completá tus datos para continuar.</span></div><form class="nameForm" id="nameForm" hidden>
-  <fieldset class="profile-step"><legend>Nombre y apellido</legend><div class="form-grid"><label>Nombre<input id="personName" maxlength="48" autocomplete="given-name" required placeholder="Nombre"></label><label>Apellido<input id="personSurname" maxlength="60" autocomplete="family-name" required placeholder="Apellido"></label><label class="full">Correo electrónico<input id="personEmail" type="email" autocomplete="email" maxlength="254" required placeholder="nombre@ejemplo.com"></label></div></fieldset>
+  <fieldset class="profile-step"><legend>Nombre y apellido</legend><div class="form-grid"><label>Nombre<input id="personName" maxlength="48" autocomplete="given-name" required placeholder="Nombre"></label><label>Apellido<input id="personSurname" maxlength="60" autocomplete="family-name" required placeholder="Apellido"></label><label class="full">Correo electrónico<input id="personEmail" type="email" autocomplete="email" maxlength="254" required placeholder="nombre@ejemplo.com"></label><label class="full">Contraseña<input id="personPassword" type="password" minlength="15" maxlength="128" autocomplete="new-password" required><small>Usá 15 caracteres o más con variedad. Podés usar una frase larga.</small></label><label class="full">Confirmá la contraseña<input id="personPasswordConfirm" type="password" minlength="15" maxlength="128" autocomplete="new-password" required></label></div></fieldset>
   <fieldset class="profile-step" hidden disabled><legend>Edad y sexo</legend><div class="form-grid"><label>Edad<input id="personAge" type="number" min="1" max="120" required placeholder="Edad"></label><label>Sexo<select id="personSex" required>
     <option value="">Seleccioná una opción</option><option value="femenino">Femenino</option><option value="masculino">Masculino</option><option value="otro">Otro</option><option value="sin-declarar">Prefiero no decirlo</option>
   </select></label></div></fieldset>
@@ -552,11 +558,11 @@ body{background:var(--site-bg)}
       <section class="panel-group" id="panel-security" hidden aria-labelledby="panelSecurityHeading">
         <header class="panel-section-header"><h2 id="panelSecurityHeading">Seguridad</h2><p>Administrá cómo ingresás a tu cuenta de Renx.</p></header>
       <div class="panel-grid">
-        <article class="panel-card"><h3>Claves de acceso</h3><p>Usá el rostro, la huella o el PIN que tengas configurado en tu dispositivo.</p><button class="primary" id="addPasskey" type="button" hidden>Agregar clave de acceso</button></article>
+        <article class="panel-card" id="passkeySettings"><h3>Claves de acceso</h3><p>Usá el rostro, la huella o el PIN que tengas configurado en tu dispositivo.</p><button class="primary" id="addPasskey" type="button" hidden>Agregar clave de acceso</button></article>
         <article class="panel-card"><h3>Reconocimiento facial</h3><p id="faceSecurityState"></p><button class="secondary" id="configureFace" type="button">Configurar rostro en este navegador</button><button class="secondary" id="deleteFace" type="button" hidden>Borrar referencia facial</button></article>
         <article class="panel-card"><h3>Acceso por QR</h3><p>Desde el celular podés escanear el código que muestra la computadora al iniciar sesión.</p><button class="secondary" id="enableAccess" type="button" hidden>Habilitar acceso por QR</button></article>
       </div>
-      <article class="panel-card panel-extra">
+      <article class="panel-card panel-extra" id="passkeyInventory">
         <h3>Mis claves</h3><p>Podés ponerles un nombre y quitar las que ya no usás.</p>
         <ul class="device-list" id="passkeyList"></ul>
       </article>
@@ -600,6 +606,7 @@ body{background:var(--site-bg)}
     <p>Se eliminarán tus datos, tus claves de acceso de Renx y todas tus sesiones. Esta acción es definitiva.</p>
     <label for="deleteAccountPhrase">Escribí <strong>BORRAR</strong> para continuar</label>
     <input id="deleteAccountPhrase" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+    <label id="deletePasswordField" hidden>Contraseña<input id="deletePassword" type="password" maxlength="128" autocomplete="current-password"></label>
     <p id="deleteAccountError" role="alert" hidden></p>
     <div class="panel-actions">
       <button class="secondary" id="cancelDeleteAccount" type="button">Cancelar</button>
@@ -636,12 +643,34 @@ $('previousProfile').onclick=()=>showProfileStep(profileStep-1);
 for(const field of profileForm.querySelectorAll('input[type="text"], input:not([type])')){
   field.addEventListener('input',()=>field.setCustomValidity(''));
 }
+$('personEmail').addEventListener('input',()=> $('personEmail').setCustomValidity(''));
+const registrationPassword=$('personPassword');
+const registrationConfirmation=$('personPasswordConfirm');
+for(const field of [registrationPassword,registrationConfirmation]){
+  field.oninput=()=>{
+    registrationPassword.setCustomValidity('');
+    registrationConfirmation.setCustomValidity('');
+  };
+}
 profileForm.addEventListener('submit',async event=>{
   event.preventDefault();
   for(const field of profileSteps[profileStep].querySelectorAll('input:not([type])')){
     if(!field.value.trim()){
       field.setCustomValidity('Completá este campo.');
       field.reportValidity();
+      return;
+    }
+  }
+  if(profileStep===0){
+    const password=registrationPassword.value;
+    if(password.trim().length<15||new Set(password).size<5){
+      registrationPassword.setCustomValidity('Usá al menos 15 caracteres con variedad.');
+      registrationPassword.reportValidity();
+      return;
+    }
+    if(password!==registrationConfirmation.value){
+      registrationConfirmation.setCustomValidity('Las contraseñas no coinciden.');
+      registrationConfirmation.reportValidity();
       return;
     }
   }
@@ -659,13 +688,17 @@ profileForm.addEventListener('submit',async event=>{
   };
   $('nextProfile').disabled=true;
   try{
-    const result=await api('/finish',{id:desktopRequest.id,token:desktopRequest.desktop,profile});
-    const shouldSave=Boolean(phoneRequest?.registeredCredential);
+    const result=await api('/finish',{id:desktopRequest.id,token:desktopRequest.desktop,profile,password:registrationPassword.value});
+    const shouldSave=Boolean(phoneRequest?.faceSamples);
     const saved=saveRegistrationFace(phoneRequest,result.account);
     finishSignIn(result);
     if(shouldSave&&!saved)panelMessage('La cuenta se creó. El navegador no pudo guardar la referencia facial.');
   }catch(error){
-    $('locationHelp').textContent=error.message;
+    if(error.status===409&&error.message.includes('correo')){
+      showProfileStep(0,false);
+      $('personEmail').setCustomValidity(error.message);
+      $('personEmail').reportValidity();
+    }else $('locationHelp').textContent=error.message;
   }finally{
     $('nextProfile').disabled=false;
   }
@@ -689,7 +722,7 @@ function savedFaces(){
 }
 function updateFaceButtons(){
   const faces=savedFaces();
-  const hasReference=faces.some(face=>accountCredentials.has(face.id));
+  const hasReference=faces.some(face=>face.accountId===panelAccount?.id && face.accountId || accountCredentials.has(face.id));
   $('deleteFace').hidden=!hasReference;
   $('faceSecurityState').textContent=hasReference
     ?'Hay una referencia guardada en este navegador. Se usa para encontrar tu cuenta con la cámara.'
@@ -778,12 +811,14 @@ function rememberFaceAccount(credentialId,account){
   try{localStorage.setItem(faceStorageKey,JSON.stringify(faces))}catch{}
 }
 function saveRegistrationFace(request,account){
-  if(!request?.faceSamples||!request.registeredCredential)return false;
+  const faceId=request?.registeredCredential||account?.id;
+  if(!request?.faceSamples||!faceId)return false;
   try{
-    const id=request.registeredCredential;
+    const id=faceId;
     const faces=savedFaces().filter(face=>face.id!==id);
     localStorage.setItem(faceStorageKey,JSON.stringify([{
       id,samples:request.faceSamples,
+      accountId:request.registeredCredential?undefined:account.id,
       ...faceAccountSummary(account)
     },...faces].slice(0,8)));
     request.faceSamples=null;
@@ -826,7 +861,7 @@ $('configureFace').onclick=async()=>{
 };
 $('deleteFace').onclick=()=>{
   try{
-    localStorage.setItem(faceStorageKey,JSON.stringify(savedFaces().filter(face=>!accountCredentials.has(face.id))));
+    localStorage.setItem(faceStorageKey,JSON.stringify(savedFaces().filter(face=>!accountCredentials.has(face.id)&&!(face.accountId&&face.accountId===panelAccount?.id))));
     updateFaceButtons();
     panelMessage('Rostro borrado de este navegador.');
   }catch(error){panelMessage(error.message)}
@@ -915,7 +950,7 @@ function selectPanel(section, view='sessions'){
       else option.removeAttribute('aria-current');
     }
     if(view==='sessions')loadDevices();
-    if(view==='security')loadPasskeys();
+    if(view==='security'&&!panelAccount?.hasPassword)loadPasskeys();
     if(view==='activity')loadActivity();
   }
 }
@@ -954,6 +989,9 @@ for(const option of organizerButtons)option.onclick=()=>{
 };
 function renderAccount(account){
   panelAccount=account;
+  $('passkeySettings').hidden=$('passkeyInventory').hidden=$('configureFace').hidden=Boolean(account.hasPassword);
+  $('passkeyCount').closest('.panel-metric').hidden=Boolean(account.hasPassword);
+  updateFaceButtons();
   $('ceoBadge').hidden=$('ceoOverview').hidden=!account.ceo;
   if(account.ceo){
     $('ceoAccounts').textContent=account.ceo.accounts;
@@ -996,6 +1034,9 @@ function deleteAccountError(message=''){
 }
 $('openDeleteAccount').onclick=()=>{
   deletePhrase.value='';
+  $('deletePassword').value='';
+  $('deletePasswordField').hidden=!panelAccount?.hasPassword;
+  $('deletePassword').required=Boolean(panelAccount?.hasPassword);
   confirmDelete.disabled=true;
   deleteAccountError();
   deleteDialog.showModal();
@@ -1011,10 +1052,16 @@ $('deleteAccountForm').onsubmit=async event=>{
   confirmDelete.disabled=cancelDelete.disabled=deletePhrase.disabled=true;
   deleteAccountError();
   try{
-    if(!window.SimpleWebAuthnBrowser)throw Error('No se pudo cargar el servicio de claves de acceso.');
-    const optionsJSON=await api('/account/delete/options',{token});
-    const response=await window.SimpleWebAuthnBrowser.startAuthentication({optionsJSON});
-    const result=await api('/account/delete',{token,response});
+    let result;
+    if(panelAccount?.hasPassword){
+      result=await api('/password/delete-account',{token,email:panelAccount.email,password:$('deletePassword').value});
+    }else{
+      if(!window.SimpleWebAuthnBrowser)throw Error('No se pudo cargar el servicio de claves de acceso.');
+      const optionsJSON=await api('/account/delete/options',{token});
+      const response=await window.SimpleWebAuthnBrowser.startAuthentication({optionsJSON});
+      result=await api('/account/delete',{token,response});
+    }
+    $('deletePassword').value='';
     const ids=new Set(result.credentialIds);
     let clearedFace=true;
     try{
@@ -1208,6 +1255,7 @@ function showVerificationMode(mode){
   $('qrFallback').hidden=mode!=='qr';
   $('phoneApproval').hidden=mode!=='approval';
   $('retryFaceAccount').hidden=true;
+  $('passwordLogin').hidden=true;
   $('scannerCard').hidden=mode!=='scanner';
   $('faceRecognitionCard').hidden=mode!=='face';
   for(const id of ['camera','phaseCard','verificationProgress'])$(id).hidden=mode!=='camera';
@@ -1238,6 +1286,7 @@ function finishSignIn({session,account}){
 }
 function openProfile(){
   profileForm.reset();
+  for(const field of [$('personEmail'),registrationPassword,registrationConfirmation])field.setCustomValidity('');
   showProfileStep(0,false);
   profileForm.hidden=false;
   showScreen('registration');
@@ -1287,7 +1336,7 @@ async function begin(purpose){
     if(isPhone){
       phoneRequest={id:request.id,token:request.phone,purpose};
       if(purpose==='registration'||savedFaces().length)startFace();
-      else showApproval('Iniciá sesión','Usá el reconocimiento facial, la huella o el PIN de este dispositivo para abrir tu cuenta de Renx.','Continuar en este dispositivo',approvePhone);
+      else showPasswordLogin();
       return;
     }
     showVerificationMode('qr');
@@ -1311,6 +1360,66 @@ function startFace(){
     ?'Durante el registro guardaremos una referencia facial en este navegador.'
     :'Seguí los movimientos para buscar tu cuenta con el rostro.');
   startCamera();
+}
+function showPasswordLogin(face){
+  showVerificationMode('approval');
+  $('confirmPhone').hidden=true;
+  $('phoneApprovalTitle').textContent=face?.accountName||'Iniciá sesión';
+  $('phoneApprovalText').textContent=face?.emailHint||'';
+  const form=$('passwordLogin');
+  form.reset();
+  form.hidden=false;
+  $('legacyLogin').hidden=Boolean(face?.accountId);
+  $('legacyLogin').onclick=async()=>{
+    try{await approvePhone()}catch(error){notify(error.message)}
+  };
+  form.onsubmit=async event=>{
+    event.preventDefault();
+    const request=phoneRequest;
+    const submit=$('submitPasswordLogin');
+    if(submit.disabled)return;
+    submit.disabled=true;
+    notify();
+    try{
+      const result=await api('/password/login',{
+        email:$('loginEmail').value,password:$('loginPassword').value,faceAccountId:face?.accountId
+      });
+      if(phoneRequest!==request)return;
+      form.reset();
+      finishSignIn(result);
+    }catch(error){if(phoneRequest===request)notify(error.message)}
+    finally{submit.disabled=false}
+  };
+  $('loginEmail').focus();
+}
+async function completeFaceRegistration(request){
+  await api('/registration/ready',{id:request.id,token:request.token});
+  if(phoneRequest!==request)return;
+  if(desktopRequest?.id===request.id){
+    openProfile();
+    return;
+  }
+  showVerificationMode('approval');
+  $('confirmPhone').hidden=true;
+  $('phoneApprovalTitle').textContent='Continuá en la computadora';
+  $('phoneApprovalText').textContent='Completá tus datos para guardar la referencia facial en este navegador.';
+  const deadline=Date.now()+5*60_000;
+  while(phoneRequest===request&&Date.now()<deadline){
+    await wait(3000);
+    if(phoneRequest!==request)return;
+    try{
+      const {account}=await api('/registration/result',{id:request.id,token:request.token});
+      if(phoneRequest!==request)return;
+      if(account){
+        const saved=saveRegistrationFace(request,account);
+        phoneRequest=null;
+        $('phoneApprovalTitle').textContent='Registro completado';
+        $('phoneApprovalText').textContent=saved?'Tu referencia quedó guardada.':'Este navegador no pudo guardar la referencia facial.';
+        return;
+      }
+    }catch{ /* The next poll can recover from a temporary network failure. */ }
+  }
+  if(phoneRequest===request)$('phoneApprovalText').textContent='El código venció. Iniciá el registro otra vez.';
 }
 async function approvePhone(){
   const request=phoneRequest;
@@ -1553,6 +1662,9 @@ async function flow(){
     const captured=await collectFaceSamples(video,()=>phoneRequest===current);
     if(phoneRequest!==current||!captured)return;
     if(current.purpose==='registration'){
+      if(bestFaceMatch(captured.model,captured.samples,savedFaces())){
+        throw Error('Este rostro ya está registrado en este navegador. Volvé e iniciá sesión.');
+      }
       current.faceSamples=captured.samples;
     }else{
       current.credentialId=bestFaceMatch(captured.model,captured.samples,savedFaces());
@@ -1563,10 +1675,10 @@ async function flow(){
     landmarker=null;
     $('confirmPhone').hidden=false;
     if(current.purpose==='registration'){
-      showApproval('Guardá tu clave de acceso','Usá Face ID, huella o el PIN de tu celular para proteger tu cuenta.','Crear clave de acceso',approvePhone);
+      await completeFaceRegistration(current);
     }else{
       const face=savedFaces().find(item=>item.id===current.credentialId);
-      showApproval(face?.accountName||'¿Es tu cuenta?',face?.emailHint||'Los datos de esta cuenta se mostrarán acá después de confirmar el ingreso una vez.', 'Sí, es mi cuenta',approvePhone);
+      showApproval(face?.accountName||'¿Es tu cuenta?',face?.emailHint||'Los datos de esta cuenta se mostrarán acá después de confirmar el ingreso una vez.', 'Sí, es mi cuenta',()=>showPasswordLogin(face));
       const retry=$('retryFaceAccount');
       retry.hidden=false;
       retry.onclick=()=>{
@@ -1582,7 +1694,7 @@ async function flow(){
     $('start').hidden=false;
     $('start').textContent='Reintentar';
     $('start').disabled=false;
-    $('start').onclick=()=>{$('start').hidden=true;notify();flow()};
+    $('start').onclick=()=>{$('start').hidden=true;notify();if(landmarker)flow();else startFace()};
   }finally{working=false}
 }
 $('backButton').onclick=()=>{

@@ -387,3 +387,10 @@
 .ceo-overview dl { display: flex; flex-wrap: wrap; gap: 14px 32px; margin: 12px 0 0; }
 .ceo-overview dt { color: var(--app-muted); font-size: 12px; }
 .ceo-overview dd { margin: 4px 0 0; font-size: 15px; }
+
+.password-login { display: grid; gap: 10px; text-align: left; }
+.password-login label { display: grid; gap: 5px; font-size: 13px; }
+.password-login input {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--renx-line);
+  border-radius: 8px; background: var(--renx-paper); color: var(--renx-ink);
+}
