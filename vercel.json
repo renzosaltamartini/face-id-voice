@@ -31,6 +31,10 @@
       "destination": "/panel/room/index.html"
     },
     {
+      "source": "/face-id-voice/panel/room/",
+      "destination": "/panel/room/index.html"
+    },
+    {
       "source": "/face-id-voice/panel/room/:asset",
       "destination": "/panel/room/:asset"
     },
