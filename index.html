@@ -1362,14 +1362,23 @@ async function openQR(parts,fromPanel=false){
     phoneRequest={...parts,purpose};
     showApproval(
       purpose==='registration'?'Verificá tu rostro':'Habilitá el acceso',
-      purpose==='registration'?'Completá los cinco movimientos con la cámara.':'Confirmá con la clave de acceso de tu cuenta de Renx.',
-      'Continuar',purpose==='registration'?startFace:approvePhone
+      purpose==='registration'?'Completá los cinco movimientos con la cámara.':'Autorizá el ingreso a la computadora con la cuenta abierta en este celular.',
+      purpose==='registration'?'Continuar':'Autorizar ingreso',purpose==='registration'?startFace:approveQRFromSession
     );
   }catch(error){
     $('phoneApprovalTitle').textContent='No se pudo abrir el código';
     $('phoneApprovalText').textContent=error.message;
     $('confirmPhone').hidden=true;
   }
+}
+async function approveQRFromSession(){
+  const request=phoneRequest;
+  await api('/approve-session',{id:request.id,token:request.token,session:sessionToken});
+  if(phoneRequest!==request)return;
+  phoneRequest=null;
+  $('phoneApprovalTitle').textContent='Ingreso autorizado';
+  $('phoneApprovalText').textContent='Ya podés continuar en la computadora.';
+  $('confirmPhone').hidden=true;
 }
 function stopScanner(){
   scannerStream?.getTracks().forEach(track=>track.stop());

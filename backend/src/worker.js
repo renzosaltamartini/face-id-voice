@@ -428,7 +428,7 @@ export default {
         delete account.id;
         return json(account);
       }
-      if (!['/status', '/finish', '/phone', '/options', '/approve'].includes(route)) return fail(404, 'Opción no disponible.');
+      if (!['/status', '/finish', '/phone', '/options', '/approve', '/approve-session'].includes(route)) return fail(404, 'Opción no disponible.');
       if (!validToken(body.id) || !validToken(body.token)) return fail(400, 'Solicitud inválida.');
       const tokenHash = await hash(body.token);
       const isDesktop = ['/status', '/finish'].includes(route);
@@ -441,6 +441,20 @@ export default {
       if (route === '/phone') return json({ purpose: handoff.purpose, approved: Boolean(handoff.approved_at) });
 
       const registration = handoff.purpose === 'registration';
+      if (route === '/approve-session') {
+        if (registration) return fail(400, 'Este código es para registrarte.');
+        if (!validToken(body.session)) return fail(401, 'Iniciá sesión en el celular.');
+        const activeSession = await hash(body.session);
+        const result = await query(`WITH active AS (
+            SELECT account_id FROM sessions WHERE token_hash = ? AND expires_at > ?
+          )
+          UPDATE qr_requests SET approved_at = ?, account_id = (SELECT account_id FROM active), challenge = NULL
+          WHERE id = ? AND phone_token_hash = ? AND phone_origin = ? AND purpose = 'sign-in'
+            AND expires_at > ? AND consumed_at IS NULL AND approved_at IS NULL AND EXISTS (SELECT 1 FROM active)`,
+          activeSession, now, now, handoff.id, tokenHash, origin, now).run();
+        if (result.meta.changes) return json({ approved: true });
+        return fail(409, 'La sesión o el código ya no está disponible. Volvé a iniciar el acceso.');
+      }
       if (route === '/options') {
         if (handoff.approved_at) return fail(409, 'Ya se aprobó esta solicitud.');
         const options = registration
