@@ -10,7 +10,7 @@
   --muted: #625f57;
   --sidebar-width: 267px;
   --document-width: 608px;
-  font-family: Inter, Arial, sans-serif;
+  font-family: Poppins, Arial, sans-serif;
   font-size: 14px;
   background: var(--surface);
   color: var(--text);
@@ -255,7 +255,7 @@ kbd { font: inherit; }
 #deletePageName { overflow-wrap: anywhere; }
 #saveFeedback:not(:empty) { padding: 2px 7px; border-radius: 6px; background: var(--hover); font-size: 11px; }
 .sidebar-row, .icon-button, .bar-button, .starter-actions button {
-  transition: background-color .16s ease, color .16s ease, opacity .16s ease;
+  transition: background-color .2s ease, color .2s ease, opacity .2s ease;
 }
 .starter-actions button { transition: background-color .16s ease, transform .16s ease; }
 .starter-actions button:hover { transform: translateY(-2px); }
@@ -265,7 +265,7 @@ kbd { font: inherit; }
 }
 @keyframes room-fade { from { opacity: 0; } to { opacity: 1; } }
 .dialog[open], .block-picker:not([hidden]), .status:not([hidden]), .starter:not([hidden]) {
-  animation: room-pop .18s ease-out both;
+  animation: room-pop .24s cubic-bezier(.2,.75,.25,1) both;
 }
 .dialog[open]::backdrop { animation: room-fade .18s ease-out; }
 @media (max-width: 720px) {
@@ -285,13 +285,13 @@ kbd { font: inherit; }
 
 
 .sidebar {
-  transition: margin-inline-start .27s cubic-bezier(.22,.75,.25,1), opacity .22s ease, visibility 0s;
+  transition: margin-inline-start .32s cubic-bezier(.22,.75,.25,1), opacity .26s ease, visibility 0s;
 }
 .layout[data-sidebar="closed"] .sidebar {
   margin-inline-start: calc(-1 * var(--sidebar-width));
   opacity: 0;
   visibility: hidden;
-  transition-delay: 0s, 0s, .27s;
+  transition-delay: 0s, 0s, .32s;
 }
 .folder-contents {
   width: min(720px, calc(100% - 48px));

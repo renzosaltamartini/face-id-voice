@@ -276,3 +276,89 @@
 #dashboard .primary, #dashboard #addPasskey {
   background: var(--renx-blue); border-color: var(--renx-blue); color: white;
 }
+
+/* Account access */
+#verify .verify-shell, #registration .registration-shell {
+  padding-top: clamp(20px,4vw,44px);
+}
+#verify .verify-shell { max-width: 440px; }
+#registration .registration-shell { max-width: 690px; }
+#verify .verify-header, #registration .registration-intro {
+  margin: 26px 0 22px;
+  text-align: left;
+}
+#verify .verify-header h1, #registration .registration-intro h1 {
+  margin: 0 0 9px; color: var(--renx-ink);
+  font: 500 clamp(28px,6vw,42px)/1.08 var(--font-heading);
+  letter-spacing: -.045em;
+}
+#registration .registration-intro { display: grid; justify-items: start; gap: 7px; }
+#registration .registration-check {
+  width: 36px; height: 36px; margin: 0; border: 0; border-radius: 9px;
+  background: #e9f4ed; color: #216344; font-size: 20px;
+}
+#registration .registration-intro p { margin: 0; color: #216344; letter-spacing: .04em; }
+#registration .registration-intro span { color: var(--renx-muted); line-height: 1.55; }
+#verify :is(.device-choice,.qr-fallback,.scanner-card,#phoneApproval), #registration .nameForm {
+  background: #fff; border: 1px solid var(--renx-line); border-radius: 12px;
+  padding: clamp(15px,4vw,26px); box-shadow: 0 8px 24px #28241b0b;
+}
+#verify .device-choice { gap: 10px; }
+#verify .device-choice p { margin: 0 0 4px; text-align: left; }
+#verify .remember-device { color: var(--renx-muted); justify-content: flex-start; padding: 4px 0; }
+#verify .remember-device input { accent-color: var(--renx-blue); }
+#registration :is(.profile-step legend,.profile-actions button) { font-family: var(--font-heading); }
+#registration .profile-step legend { color: var(--renx-ink); font-size: 16px; font-weight: 500; }
+#registration .nameForm input, #registration .nameForm select { background: var(--renx-paper); }
+#registration .registration-progress .progress { background: var(--renx-paper-deep); }
+#registration .registration-progress .bar { background: var(--renx-blue); }
+#verify .back { background: transparent; border-color: transparent; padding-inline: 9px; color: var(--renx-muted); }
+#verify :is(.qr-fallback,#phoneApproval) h2 { font: 500 23px/1.15 var(--font-heading); }
+#verify :is(.primary,.secondary), #registration :is(.primary,.secondary) {
+  min-height: 42px; font-weight: 500;
+}
+:is(#verify,#registration) .primary {
+  background: var(--renx-blue); color: #fff; border-color: var(--renx-blue);
+}
+:is(#home,#verify,#registration,#dashboard) :is(button,a) {
+  transition: background-color .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+@media (hover: hover) {
+  :is(#home,#verify,#registration,#dashboard) .primary:not(:disabled):hover,
+  #dashboard #addPasskey:not(:disabled):hover {
+    background: var(--renx-blue-hover); border-color: var(--renx-blue-hover);
+    color: #fff; opacity: 1; box-shadow: 0 3px 10px #1746ad25;
+  }
+  :is(#verify,#registration) :is(.secondary,.back):not(:disabled):hover {
+    color: var(--renx-blue); border-color: #ccd7ef; background: var(--renx-blue-soft);
+  }
+  #dashboard .panel-nav .organizer-options button:not(:disabled):hover {
+    background: var(--renx-blue-soft); color: var(--renx-blue);
+  }
+}
+.session-alert {
+  display: flex; align-items: center; gap: 9px; width: fit-content; max-width: 100%;
+  margin: 16px 0 0; padding: 6px 7px 6px 10px; border: 1px solid #e5c790;
+  border-radius: 12px; background: #fff4dc; color: #644617;
+  font-size: 13px; line-height: 1.5;
+}
+.session-alert-icon {
+  display: grid; place-items: center; width: 21px; height: 21px; flex: none;
+  border-radius: 50%; background: #f6e1ad; font-weight: 600;
+}
+.session-alert button {
+  padding: 0; width: 30px; height: 30px; flex: none;
+  border: 0; border-radius: 6px; background: transparent; color: inherit; font-size: 19px;
+}
+.session-alert button:hover { background: #f6e1ad; }
+@keyframes renx-enter {
+  from { opacity: 0; translate: 0 7px; }
+  to { opacity: 1; translate: none; }
+}
+.screen:not([hidden]) { animation: renx-enter .3s cubic-bezier(.2,.75,.25,1) both; }
+:is(#verify .device-choice,#verify .qr-fallback,#registration .profile-step,.session-alert):not([hidden]) {
+  animation: renx-enter .24s cubic-bezier(.2,.75,.25,1) both;
+}
+.panel-main > section:not([hidden]), #panel-devices > .panel-group:not([hidden]) {
+  animation: renx-enter .24s cubic-bezier(.2,.75,.25,1) both;
+}
