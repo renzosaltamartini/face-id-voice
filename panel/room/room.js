@@ -14,6 +14,9 @@ const icons = {
   move: '<path d="M4 12h16m-4-4 4 4-4 4"/>',
   trash: '<path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/>',
   copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+  bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 12a2 2 0 0 0 4 0"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/>',
+  wallet: '<path d="M20 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h15v12H5a2 2 0 0 1-2-2V6m17 7h-4"/>',
   grip: '<path d="M9 4h.01M15 4h.01M9 12h.01m6 0h.01M9 20h.01m6 0h.01" stroke-width="3"/>',
   text: '<path d="M5 6V4h14v2M12 4v16m-3 0h6"/>',
   heading: '<path d="M5 5v14M19 5v14M5 12h14"/>',
@@ -140,19 +143,115 @@ function folderPath(id) {
   return path;
 }
 
+const folderExpansion = new Map();
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+let draggedEntry;
+
+function siblingEntries(isFolder, parent) {
+  return (isFolder ? folders : pages)
+    .filter(entry => (isFolder ? entry.parentId ?? null : entry.folderId) === parent)
+    .sort((a, b) => (a.sortOrder ?? Infinity) - (b.sortOrder ?? Infinity));
+}
+
+function bindTreeDrag(element, item, isFolder) {
+  element.dataset.treeKey = (isFolder ? 'folder-' : 'page-') + item.id;
+  element.draggable = true;
+  element.addEventListener('dragstart', event => {
+    draggedEntry = { item, isFolder };
+    event.dataTransfer.setData('text/plain', item.id);
+    event.dataTransfer.effectAllowed = 'move';
+  });
+  element.addEventListener('dragend', () => { draggedEntry = null; delete element.dataset.drop; });
+  function position(event) {
+    if (!draggedEntry || draggedEntry.item.id === item.id) return null;
+    if (isFolder && draggedEntry.isFolder && folderPath(item.id).includes(draggedEntry.item)) return null;
+    const bounds = element.getBoundingClientRect();
+    const y = (event.clientY - bounds.top) / bounds.height;
+    const sameParent = isFolder === draggedEntry.isFolder && (isFolder
+      ? (item.parentId ?? null) === (draggedEntry.item.parentId ?? null)
+      : item.folderId === draggedEntry.item.folderId);
+    if (sameParent && (!isFolder || y < .27 || y > .73)) return y < .5 ? 'before' : 'after';
+    return isFolder ? 'inside' : null;
+  }
+  element.addEventListener('dragover', event => {
+    const target = position(event);
+    if (!target) { delete element.dataset.drop; return; }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    element.dataset.drop = target;
+  });
+  element.addEventListener('dragleave', event => {
+    if (!element.contains(event.relatedTarget)) delete element.dataset.drop;
+  });
+  element.addEventListener('drop', event => {
+    const target = position(event);
+    delete element.dataset.drop;
+    if (!target) return;
+    event.preventDefault();
+    const source = draggedEntry;
+    draggedEntry = null;
+    if (target === 'inside') {
+      const from = source.isFolder ? source.item.parentId : source.item.folderId;
+      if (from !== item.id) moveItem(source.item, source.isFolder, item.id);
+    } else {
+      reorderEntry(source.item, item, isFolder, target === 'after');
+    }
+  });
+}
+
+async function reorderEntry(source, target, isFolder, after) {
+  if (navigating) return;
+  navigating = true;
+  documentView.inert = true;
+  try {
+    if (!await flushChanges()) return;
+    const parentId = isFolder ? target.parentId ?? null : target.folderId;
+    const siblings = siblingEntries(isFolder, parentId);
+    const ordered = siblings.filter(item => item.id !== source.id);
+    ordered.splice(ordered.findIndex(item => item.id === target.id) + Number(after), 0,
+      siblings.find(item => item.id === source.id));
+    await request('/room/order', { kind: isFolder ? 'folder' : 'page', parentId, ids: ordered.map(item => item.id) });
+    ordered.forEach((item, index) => { item.sortOrder = index; });
+    renderSidebar();
+  } catch (error) {
+    setStatus(error.message, true);
+  } finally {
+    documentView.inert = false;
+    navigating = false;
+  }
+}
+
 function renderSidebar() {
   const folderList = $('folders');
+  const previous = new Map(reducedMotion.matches ? [] :
+    [...folderList.querySelectorAll('[data-tree-key]')].map(element =>
+      [element.dataset.treeKey, { element, bounds: element.getBoundingClientRect() }]));
   folderList.replaceChildren();
   const expanded = new Set(folderPath(folderId).map(item => item.id));
   function appendFolders(parent, depth) {
-    for (const folder of folders.filter(item => (item.parentId ?? null) === parent)) {
+    for (const folder of siblingEntries(true, parent)) {
       const item = document.createElement('div');
       item.className = 'folder-row';
       item.style.marginInlineStart = Math.min(depth, 6) * 12 + 'px';
       item.dataset.current = String(folder.id === folderId);
       const button = row(folder.name, 'folder');
       button.setAttribute('aria-pressed', item.dataset.current);
-      button.onclick = () => openPage(null, folder.id, { browse: true });
+      const isExpanded = folderExpansion.get(folder.id) ?? expanded.has(folder.id);
+      button.onclick = () => {
+        folderExpansion.set(folder.id, true);
+        openPage(null, folder.id, { browse: true });
+      };
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'icon-button tree-toggle';
+      toggle.textContent = '›';
+      toggle.setAttribute('aria-label', (isExpanded ? 'Plegar ' : 'Desplegar ') + folder.name);
+      toggle.setAttribute('aria-expanded', String(isExpanded));
+      toggle.onclick = () => {
+        folderExpansion.set(folder.id, !isExpanded);
+        renderSidebar();
+        folderList.querySelector('[data-tree-key="folder-' + folder.id + '"] .tree-toggle')?.focus();
+      };
       const more = iconButton('more', 'Opciones de ' + folder.name);
       more.onclick = () => folderActions(folder);
       const count = document.createElement('span');
@@ -160,13 +259,15 @@ function renderSidebar() {
       count.setAttribute('aria-hidden', 'true');
       count.textContent = pages.filter(entry => entry.folderId === folder.id).length + folders.filter(entry => entry.parentId === folder.id).length;
       button.append(count);
-      item.append(button, more);
+      item.append(toggle, button, more);
+      bindTreeDrag(item, folder, true);
       folderList.append(item);
-      if (expanded.has(folder.id)) {
+      if (isExpanded) {
         if (folder.id === folderId && page && !page.id && !browsingFolder) appendDraft(depth + 1);
-        for (const entry of pages.filter(entry => entry.folderId === folder.id)) {
+        for (const entry of siblingEntries(false, folder.id)) {
           const pageEntry = pageRow(entry);
           pageEntry.style.marginInlineStart = Math.min(depth + 1, 7) * 12 + 'px';
+          bindTreeDrag(pageEntry, entry, false);
           folderList.append(pageEntry);
         }
         appendFolders(folder.id, depth + 1);
@@ -184,6 +285,26 @@ function renderSidebar() {
   appendFolders(null, 0);
   if (!folders.length) folderList.append(note('Tus carpetas aparecerán acá.'));
   if (!folderId && page && !page.id && !browsingFolder) appendDraft(0);
+  if (!reducedMotion.matches && previous.size) {
+    for (const element of folderList.querySelectorAll('[data-tree-key]')) {
+      const top = previous.get(element.dataset.treeKey)?.bounds.top;
+      previous.delete(element.dataset.treeKey);
+      const offset = top === undefined ? -5 : top - element.getBoundingClientRect().top;
+      if (offset) element.animate(
+        [{ transform: 'translateY(' + offset + 'px)', opacity: top === undefined ? 0 : 1 }, { transform: 'none', opacity: 1 }],
+        { duration: 210, easing: 'cubic-bezier(.2,.75,.25,1)' });
+    }
+    const viewport = folderList.closest('.sidebar-scroll').getBoundingClientRect();
+    for (const { element, bounds } of previous.values()) {
+      if (bounds.bottom <= viewport.top || bounds.top >= viewport.bottom) continue;
+      element.inert = true;
+      element.classList.add('tree-exit');
+      Object.assign(element.style, { top: bounds.top + 'px', left: bounds.left + 'px', width: bounds.width + 'px', margin: '0' });
+      document.body.append(element);
+      const fade = element.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-5px)' }], 140);
+      fade.onfinish = () => element.remove();
+    }
+  }
   renderFolderContents();
 }
 
@@ -199,12 +320,12 @@ function renderFolderContents() {
     return button;
   }));
   $('folderHeading').textContent = path.at(-1)?.name ?? 'Carpetas';
-  const children = folders.filter(folder => folder.parentId === folderId).map(folder => {
+  const children = siblingEntries(true, folderId).map(folder => {
     const button = row(folder.name, 'folder');
     button.onclick = () => openPage(null, folder.id, { browse: true });
     return button;
   });
-  const entries = [...children, ...pages.filter(item => item.folderId === folderId).map(item => pageRow(item))];
+  const entries = [...children, ...siblingEntries(false, folderId).map(item => pageRow(item))];
   $('folderEntries').replaceChildren(...(entries.length ? entries : [note('Esta carpeta está vacía.')]));
 }
 
@@ -311,7 +432,8 @@ function saveNow() {
       Object.assign(page, result, { folderId: pageFolder, title: label, content: current.content });
       folderId = pageFolder;
       saved = current;
-      pages = [{ id: page.id, folderId, title: label, updatedAt: page.updatedAt }, ...pages.filter(item => item.id !== page.id)];
+      const sortOrder = pages.find(item => item.id === page.id)?.sortOrder;
+      pages = [{ id: page.id, folderId, title: label, updatedAt: page.updatedAt, sortOrder }, ...pages.filter(item => item.id !== page.id)];
       if (wasDraft && !navigating) history.replaceState(null, '', roomUrl(page.id));
       setStatus();
       saveFeedback('Guardado');
@@ -416,10 +538,20 @@ function openFolderDialog(folder = null, parent = null) {
   $('folderName').focus();
 }
 
+function orderActions(item, isFolder) {
+  const siblings = siblingEntries(isFolder, isFolder ? item.parentId ?? null : item.folderId);
+  const index = siblings.findIndex(entry => entry.id === item.id);
+  const actions = [];
+  if (index > 0) actions.push({ label: 'Subir en la lista', run: () => reorderEntry(item, siblings[index - 1], isFolder, false) });
+  if (index >= 0 && index < siblings.length - 1) actions.push({ label: 'Bajar en la lista', run: () => reorderEntry(item, siblings[index + 1], isFolder, true) });
+  return actions;
+}
+
 function folderActions(folder) {
   showActions(folder.name, [
     { label: 'Nueva página', symbol: 'plus', run: () => openPage(null, folder.id, { focus: true }) },
     { label: 'Nueva subcarpeta', symbol: 'folder', run: () => openFolderDialog(null, folder.id) },
+    ...orderActions(folder, true),
     { label: 'Mover carpeta', symbol: 'move', run: () => chooseDestination(folder, true) },
     { label: 'Renombrar carpeta', symbol: 'edit', run: () => openFolderDialog(folder) },
     { label: 'Borrar carpeta', symbol: 'trash', danger: true, run: () => deleteFolder(folder) },
@@ -473,11 +605,15 @@ async function moveItem(item, isFolder, destination) {
     if (isFolder) {
       await request('/room/folders/move', { id: item.id, parentId: destination });
       item.parentId = destination;
+      item.sortOrder = null;
     } else {
       await request('/room/pages/move', { id: item.id, folderId: destination });
-      pages.find(entry => entry.id === item.id).folderId = destination;
+      const moved = pages.find(entry => entry.id === item.id);
+      moved.folderId = destination;
+      moved.sortOrder = null;
       if (page?.id === item.id) page.folderId = folderId = destination;
     }
+    if (destination) folderExpansion.set(destination, true);
     renderSidebar();
     setStatus(isFolder ? 'Carpeta movida.' : 'Página movida.');
   } catch (error) {
@@ -494,6 +630,7 @@ function pageActions(item) {
       await openPage(item.id, item.folderId);
       if (page?.id === item.id) { title.focus(); title.select(); }
     } },
+    ...orderActions(item, false),
     { label: 'Mover página', symbol: 'move', run: () => chooseDestination(item, false) },
     { label: 'Duplicar página', symbol: 'copy', run: () => duplicatePage(item) },
     { label: 'Borrar página', symbol: 'trash', danger: true, run: () => confirmDeletePage(item) },
@@ -632,7 +769,7 @@ $('roomHome').onclick = () => {
   if (recent) openPage(recent.id, recent.folderId);
   else openPage(null, folders[0]?.id, { focus: true });
 };
-$('newPage').onclick = $('quickPage').onclick = () => openPage(null, folderId, { focus: true });
+$('quickPage').onclick = () => openPage(null, folderId, { focus: true });
 $('newFolder').onclick = () => openFolderDialog();
 $('addSubfolder').onclick = () => openFolderDialog(null, folderId);
 $('addFolderPage').onclick = () => openPage(null, folderId, { focus: true });

@@ -13,6 +13,7 @@
   <script src="/face-id-voice/shared/session.js" defer></script>
   <script src="/face-id-voice/panel/room/editor.js" defer></script>
   <script src="/face-id-voice/panel/room/room.js" defer></script>
+  <script src="/face-id-voice/panel/room/entries.js" defer></script>
 </head>
 <body>
   <div class="layout" id="layout">
@@ -27,7 +28,9 @@
       </button>
       <nav class="shortcuts" aria-label="Accesos de Room">
         <button class="sidebar-row home-button" id="roomHome" data-icon="home" data-ready disabled>Inicio</button>
-        <button class="sidebar-row" id="newPage" data-icon="edit" data-ready disabled>Nueva página</button>
+        <button class="sidebar-row" data-entry-kind="reminder" data-icon="bell" data-ready disabled>Recordatorios</button>
+        <button class="sidebar-row" data-entry-kind="date" data-icon="calendar" data-ready disabled>Fechas</button>
+        <button class="sidebar-row" data-entry-kind="expense" data-icon="wallet" data-ready disabled>Gastos</button>
         <button class="sidebar-row" id="library" data-icon="library" data-ready disabled>Biblioteca</button>
       </nav>
       <div class="sidebar-scroll">
@@ -148,6 +151,26 @@
       <button class="bar-button" id="saveShare" disabled>Guardar permiso</button>
       <button class="bar-button primary" id="copyLink" disabled>Copiar enlace</button>
     </div>
+  </dialog>
+  <dialog class="dialog entries-dialog" id="entriesDialog" aria-labelledby="entriesHeading">
+    <header class="entries-header">
+      <h2 id="entriesHeading"></h2>
+      <form method="dialog"><button class="bar-button" aria-label="Cerrar">×</button></form>
+    </header>
+    <form id="entriesForm" class="entries-form">
+      <label for="entryTitle">Descripción</label>
+      <input id="entryTitle" maxlength="120" required>
+      <label for="entryDay">Fecha</label>
+      <input id="entryDay" type="date" required>
+      <div id="entryAmountField" hidden>
+        <label for="entryAmount">Importe (ARS)</label>
+        <input id="entryAmount" type="number" inputmode="decimal" min="0.01" max="1000000000" step="0.01">
+      </div>
+      <button class="bar-button primary" type="submit">Agregar</button>
+    </form>
+    <p id="entriesStatus" role="status"></p>
+    <p id="entriesTotal" hidden></p>
+    <ul id="entriesList" class="entries-list"></ul>
   </dialog>
   <main class="shared-page" id="sharedPage" hidden>
     <p id="sharedMode"></p>

@@ -112,7 +112,7 @@ export default {
         qr.make();
         return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
       }
-      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/folders/save', '/room/folders/delete', '/room/folders/move', '/room/pages/move', '/room/pages/get', '/room/share/settings', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
+      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/order', '/room/entries/list', '/room/entries/add', '/room/entries/remove', '/room/entries/toggle', '/room/folders/save', '/room/folders/delete', '/room/folders/move', '/room/pages/move', '/room/pages/get', '/room/share/settings', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -164,10 +164,59 @@ export default {
           if (!deleted.meta.changes) return fail(410, 'Volvé a iniciar la confirmación.');
           return json({ deleted: true, credentialIds: credentials.results.map(({ id }) => id) });
         }
+        if (route === '/room/order') {
+          const { kind, parentId, ids } = body;
+          if (!['folder','page'].includes(kind) || (parentId !== null && !validToken(parentId)) ||
+              !Array.isArray(ids) || !ids.length || ids.length > 300 || !ids.every(validToken) ||
+              new Set(ids).size !== ids.length) return fail(400, 'Orden inválido.');
+          const table = kind === 'folder' ? 'room_folders' : 'room_pages';
+          const parent = kind === 'folder' ? 'parent_id' : 'folder_id';
+          const result = await query(`WITH requested AS (SELECT value AS id, key AS position FROM json_each(?))
+            UPDATE ${table} SET sort_order = (SELECT position FROM requested WHERE requested.id = ${table}.id)
+            WHERE account_id = ? AND ${parent} IS ?
+              AND id IN (SELECT id FROM requested)
+              AND (SELECT COUNT(*) FROM ${table} WHERE account_id = ? AND ${parent} IS ?) = ?
+              AND (SELECT COUNT(*) FROM ${table} JOIN requested USING (id)
+                WHERE account_id = ? AND ${parent} IS ?) = ?`,
+            JSON.stringify(ids), account.id, parentId, account.id, parentId, ids.length,
+            account.id, parentId, ids.length).run();
+          return result.meta.changes === ids.length ? json({}) : fail(409, 'La carpeta cambió. Recargá Room y volvé a ordenar.');
+        }
+        if (route.startsWith('/room/entries/')) {
+          const { kind, id } = body;
+          if (!['reminder','date','expense'].includes(kind)) return fail(400, 'Lista inválida.');
+          if (route === '/room/entries/list') {
+            const { results } = await query('SELECT id, title, day, cents, done FROM room_entries WHERE account_id = ? AND kind = ? ORDER BY day, id', account.id, kind).all();
+            return json({ entries: results });
+          }
+          if (route === '/room/entries/add') {
+            const title = typeof body.title === 'string' ? body.title.trim() : '';
+            const day = typeof body.day === 'string' ? body.day : '';
+            const date = /^\d{4}-\d{2}-\d{2}$/.test(day) ? Date.parse(day + 'T00:00:00Z') : NaN;
+            const cents = kind === 'expense' ? body.cents : 0;
+            if (!title || title.length > 120 || !Number.isFinite(date) || new Date(date).toISOString().slice(0,10) !== day ||
+                !Number.isSafeInteger(cents) || cents < (kind === 'expense' ? 1 : 0) || cents > 1_000_000_000_00) {
+              return fail(400, 'Revisá los datos ingresados.');
+            }
+            const entryId = token();
+            const result = await query(`INSERT INTO room_entries (account_id, id, kind, title, day, cents)
+              SELECT ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM room_entries WHERE account_id = ?) < 1000`,
+              account.id, entryId, kind, title, day, cents, account.id).run();
+            return result.meta.changes ? json({ id: entryId, title, day, cents, done: 0 }) : fail(409, 'Alcanzaste el límite de entradas.');
+          }
+          if (!validToken(id)) return fail(400, 'Entrada inválida.');
+          if (route === '/room/entries/toggle') {
+            if (kind !== 'reminder' || typeof body.done !== 'boolean') return fail(400, 'Estado inválido.');
+            await query('UPDATE room_entries SET done = ? WHERE account_id = ? AND kind = ? AND id = ?', Number(body.done), account.id, kind, id).run();
+          } else {
+            await query('DELETE FROM room_entries WHERE account_id = ? AND kind = ? AND id = ?', account.id, kind, id).run();
+          }
+          return json({});
+        }
         if (route === '/room/list') {
           const [folders, pages] = await DB.batch([
-            query('SELECT id, name, parent_id AS parentId FROM room_folders WHERE account_id = ? ORDER BY name COLLATE NOCASE, id', account.id),
-            query(`SELECT id, folder_id AS folderId, title, updated_at AS updatedAt
+            query('SELECT id, name, parent_id AS parentId, sort_order AS sortOrder FROM room_folders WHERE account_id = ? ORDER BY name COLLATE NOCASE, id', account.id),
+            query(`SELECT id, folder_id AS folderId, title, updated_at AS updatedAt, sort_order AS sortOrder
               FROM room_pages WHERE account_id = ? ORDER BY updated_at DESC, id`, account.id),
           ]);
           return json({ folders: folders.results, pages: pages.results });
@@ -201,7 +250,7 @@ export default {
           }
           const parent = body.parentId;
           if (parent !== null && !validToken(parent)) return fail(400, 'Carpeta superior inválida.');
-          const result = await query(subtree + ` UPDATE room_folders SET parent_id = ? WHERE account_id = ? AND id = ?
+          const result = await query(subtree + ` UPDATE room_folders SET parent_id = ?, sort_order = NULL WHERE account_id = ? AND id = ?
             AND (? IS NULL OR (EXISTS (SELECT 1 FROM room_folders WHERE account_id = ? AND id = ?)
               AND NOT EXISTS (SELECT 1 FROM subtree WHERE id = ?)))`,
             account.id, body.id, account.id, parent, account.id, body.id, parent, account.id, parent, parent).run();
@@ -209,7 +258,7 @@ export default {
         }
         if (route === '/room/pages/move') {
           if (!validToken(body.id) || !validToken(body.folderId)) return fail(400, 'Destino inválido.');
-          const result = await query(`UPDATE room_pages SET folder_id = ? WHERE account_id = ? AND id = ?
+          const result = await query(`UPDATE room_pages SET folder_id = ?, sort_order = NULL WHERE account_id = ? AND id = ?
             AND EXISTS (SELECT 1 FROM room_folders WHERE account_id = ? AND id = ?)`,
             body.folderId, account.id, body.id, account.id, body.folderId).run();
           return result.meta.changes ? json({}) : fail(409, 'La página o la carpeta ya no está disponible.');
