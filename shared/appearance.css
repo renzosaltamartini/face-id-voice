@@ -381,8 +381,9 @@
 
 #dashboard .ceo-pill {
   background: #fbedee; color: #962d36; border-color: #e9b7bc;
-  margin-top: 9px; gap: 5px;
+  align-self: center; margin-inline-start: 3px; gap: 4px;
 }
+.panel-nav:has(.ceo-pill:not([hidden])) { grid-template-columns: repeat(4,minmax(0,1fr)) auto; }
 .ceo-overview { margin-bottom: 16px; }
 .ceo-overview dl { display: flex; flex-wrap: wrap; gap: 14px 32px; margin: 12px 0 0; }
 .ceo-overview dt { color: var(--app-muted); font-size: 12px; }
