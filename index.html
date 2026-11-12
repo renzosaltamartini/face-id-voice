@@ -523,7 +523,7 @@ body{background:var(--site-bg)}
       </div>
       <button type="button" data-panel="profile" aria-pressed="false"><span aria-hidden="true">○</span>Mi perfil</button>
       <a class="room-nav" id="roomLink" href="/panel/room"><span aria-hidden="true">✧</span>Room</a>
-      <span class="panel-pill ceo-pill" id="ceoBadge" hidden><span aria-hidden="true">♛</span> CEO</span>
+      <button type="button" class="panel-pill ceo-pill" id="ceoBadge" aria-controls="ceoOverview" hidden><span aria-hidden="true">♛</span> CEO</button>
     </nav>
     <div class="panel-account"><div class="avatar" id="panelInitial" aria-hidden="true"></div><button class="secondary" id="logoutButton" type="button">Cerrar sesión</button></div>
   </aside>
@@ -1049,13 +1049,16 @@ for(const option of organizerButtons)option.onclick=()=>{
   organizerToggle.focus();
   selectPanel('devices',option.dataset.organizer);
 };
+$('ceoBadge').onclick=()=>{
+  selectPanel('overview');
+  $('ceoOverview').scrollIntoView({block:'nearest'});
+};
 function renderAccount(account){
   panelAccount=account;
   $('passkeySettings').hidden=$('passkeyInventory').hidden=$('configureFace').hidden=Boolean(account.hasPassword);
   $('passkeyCount').closest('.panel-metric').hidden=Boolean(account.hasPassword);
   updateFaceButtons();
-  $('ceoBadge').hidden=account.email?.toLowerCase()!=='renzosaltamartini2008@gmail.com';
-  $('ceoOverview').hidden=!account.ceo;
+  $('ceoBadge').hidden=$('ceoOverview').hidden=!account.ceo;
   if(account.ceo){
     $('ceoAccounts').textContent=account.ceo.accounts;
     $('ceoLastSignIn').textContent=account.ceo.lastSignIn

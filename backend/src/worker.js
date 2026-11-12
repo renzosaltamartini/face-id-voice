@@ -53,7 +53,7 @@ function profileFrom(input) {
 }
 
 export default {
-  async fetch(request, { DB, NOVA_WEB_ORIGIN, AUTH_PASSWORD_PEPPER }) {
+  async fetch(request, { DB, NOVA_WEB_ORIGIN, AUTH_PASSWORD_PEPPER, CEO_ACCOUNT_ID }) {
     const origin = request.headers.get('Origin');
     if (!origin || origin !== NOVA_WEB_ORIGIN) {
       return Response.json({ error: 'Origen no autorizado.' }, { status: 403 });
@@ -180,12 +180,12 @@ export default {
           return json({});
         }
         const account = await query(`SELECT a.id, a.given_name AS name, a.family_name AS surname, a.email,
-          a.email_verified_at AS emailVerifiedAt, (a.password_hash IS NOT NULL) AS hasPassword, a.age, a.sex, a.nationality AS country, a.province, a.locality AS city, a.created_at AS createdAt,
+          (a.password_hash IS NOT NULL) AS hasPassword, a.age, a.sex, a.nationality AS country, a.province, a.locality AS city, a.created_at AS createdAt,
           (SELECT COUNT(*) FROM sessions active WHERE active.account_id = a.id AND active.expires_at > ?) AS sessionCount,
           (SELECT COUNT(*) FROM passkeys p WHERE p.account_id = a.id AND p.rp_id = ?) AS passkeyCount
           FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`, now, rpID, key, now).first();
         if (!account) return fail(401, 'Volvé a iniciar sesión.');
-        if (route === '/me' && account.emailVerifiedAt && account.email.toLowerCase() === 'renzosaltamartini2008@gmail.com') {
+        if (route === '/me' && account.id === CEO_ACCOUNT_ID) {
           account.ceo = await query(`SELECT
             (SELECT COUNT(*) FROM accounts) AS accounts,
             (SELECT MAX(created_at) FROM account_events WHERE account_id = ? AND type IN ('signed_in','account_created')) AS lastSignIn`,

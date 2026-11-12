@@ -383,6 +383,7 @@
   background: #fbedee; color: #962d36; border-color: #e9b7bc;
   align-self: center; margin-inline-start: 3px; gap: 4px;
 }
+#dashboard .panel-nav .ceo-pill:hover { background: #f8dfe2; }
 .panel-nav:has(.ceo-pill:not([hidden])) { grid-template-columns: repeat(4,minmax(0,1fr)) auto; }
 .ceo-overview { margin-bottom: 16px; }
 .ceo-overview dl { display: flex; flex-wrap: wrap; gap: 14px 32px; margin: 12px 0 0; }
