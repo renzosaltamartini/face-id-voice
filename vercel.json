@@ -4,6 +4,16 @@
   "outputDirectory": "public",
   "redirects": [
     {
+      "source": "/room",
+      "destination": "/panel/room",
+      "permanent": false
+    },
+    {
+      "source": "/room/",
+      "destination": "/panel/room",
+      "permanent": false
+    },
+    {
       "source": "/",
       "destination": "/face-id-voice/",
       "permanent": false

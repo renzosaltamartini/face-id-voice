@@ -1,11 +1,11 @@
 :root {
-  --app-bg: #f7f7f6;
+  --app-bg: var(--renx-paper);
   --app-surface: #fff;
-  --app-subtle: #efefed;
-  --app-hover: #e8e8e5;
-  --app-border: #d9d9d5;
-  --app-text: #222321;
-  --app-muted: #5e615b;
+  --app-subtle: #f1eee7;
+  --app-hover: var(--renx-paper-deep);
+  --app-border: var(--renx-line);
+  --app-text: var(--renx-ink);
+  --app-muted: var(--renx-muted);
   --app-primary: #262825;
   --app-on-primary: #fff;
   --app-danger: #962d36;
@@ -134,9 +134,9 @@
 #dashboard :is(.danger-button,.action-danger,#deleteFace):hover { border-color: var(--app-danger); background: var(--app-danger-bg); }
 #dashboard #panel-devices button:not(:disabled):hover { filter: none; }
 #home {
-  --home-blue: #1746ad;
-  --home-paper: #faf8f3;
-  --home-line: #ddd9d0;
+  --home-blue: var(--renx-blue);
+  --home-paper: var(--renx-paper);
+  --home-line: var(--renx-line);
   background: var(--home-paper);
   color: #22211f;
 }
@@ -162,7 +162,7 @@
 }
 #home .home-copy h1 {
   max-width: 9ch; margin: 0 0 22px; color: #22211f;
-  font: 400 clamp(64px,8.4vw,128px)/.91 "Instrument Serif", Georgia, serif;
+  font: 400 clamp(64px,8.4vw,128px)/.91 var(--renx-serif);
   letter-spacing: -.045em;
 }
 #home .home-copy .home-highlight {
@@ -244,4 +244,35 @@
 :is(#home,#dashboard) :is(h1,h2,h3,.logo,.panel-metric strong) { font-weight: 600; }
 #dashboard :is(.panel-nav button,.panel-nav a,.primary,.secondary,.panel-pill,.device-list strong) {
   font-weight: 500;
+}
+
+.panel-sidebar { background: var(--renx-paper); }
+#dashboard .logo-mark { background: var(--renx-blue); color: white; }
+.panel-nav { background: transparent; border-color: transparent; }
+#dashboard .panel-nav .room-nav {
+  color: white; background: var(--renx-blue); border-color: var(--renx-blue);
+  box-shadow: 0 3px 12px #1746ad2e;
+}
+#dashboard .panel-nav .room-nav:hover {
+  background: var(--renx-blue-hover); box-shadow: 0 4px 14px #1746ad46;
+}
+#dashboard .panel-hero {
+  border: 0; border-bottom: 1px solid var(--renx-line); border-radius: 0;
+  background: transparent; padding: 14px 0 30px; min-height: 0; margin-bottom: 24px;
+}
+#dashboard .panel-hero h2 {
+  font: 400 clamp(46px,7vw,88px)/.97 var(--renx-serif); letter-spacing: -.035em;
+  margin: 13px 0 8px;
+}
+#panelName { color: var(--renx-blue); font-style: italic; }
+#dashboard .panel-hero #panelEmail { margin-bottom: 0; }
+#dashboard .panel-metric strong {
+  font: 400 clamp(23px,3vw,38px)/1.1 var(--renx-serif);
+}
+#dashboard .panel-section-header h2 {
+  font: 400 clamp(32px,4.5vw,53px)/1.06 var(--renx-serif);
+  letter-spacing: -.02em;
+}
+#dashboard .primary, #dashboard #addPasskey {
+  background: var(--renx-blue); border-color: var(--renx-blue); color: white;
 }

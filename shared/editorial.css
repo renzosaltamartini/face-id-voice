@@ -1,0 +1,11 @@
+:root {
+  --renx-paper: #faf8f3;
+  --renx-paper-deep: #eeebe3;
+  --renx-line: #ddd9d0;
+  --renx-ink: #22211f;
+  --renx-muted: #55534e;
+  --renx-blue: #1746ad;
+  --renx-blue-hover: #123989;
+  --renx-blue-soft: #e7edf9;
+  --renx-serif: "Instrument Serif", Georgia, serif;
+}
