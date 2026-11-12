@@ -20,6 +20,8 @@
     }
   ],
   "rewrites": [
+    { "source": "/panel/ceo/", "destination": "/index.html" },
+    { "source": "/panel/ceo", "destination": "/index.html" },
     {
       "source": "/face-id-voice/",
       "destination": "/index.html"

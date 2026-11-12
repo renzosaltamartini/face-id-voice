@@ -372,3 +372,10 @@ kbd { font: inherit; }
 .shared-toolbar { display: flex; justify-content: flex-end; }
 .shared-page .document { width: 100%; margin: 0; padding: 28px 0 0 39px; min-height: 0; }
 .shared-page .block-tools { padding-right: 0; }
+.shared-join { display: grid; justify-items: start; gap: 12px; padding: 20px 0; }
+.shared-join input { width: min(100%, 320px); border: 1px solid #b4c3d2; border-radius: 8px; padding: 10px 12px; font: inherit; }
+#roomCursors { position: fixed; inset: 0; z-index: 25; pointer-events: none; }
+.room-remote-cursor { position: absolute; top: 0; left: 0; transition: transform .22s ease-out; }
+.room-remote-cursor::before { content: ''; display: block; width: 12px; height: 16px; background: var(--cursor-color); clip-path: polygon(0 0, 100% 66%, 53% 66%, 28% 100%); }
+.room-remote-cursor span { display: block; margin: -2px 0 0 9px; padding: 2px 7px; border-radius: 4px; background: var(--cursor-color); color: white; font-size: 12px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .room-remote-cursor { transition: none; } }

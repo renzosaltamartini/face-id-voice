@@ -403,3 +403,7 @@
   background: #fff; color: var(--renx-ink);
 }
 #verify #start { width: 100%; margin-top: 6px; }
+.ceo-account-list { display: grid; gap: 10px; margin-bottom: 16px; }
+.ceo-account-list .ceo-overview { margin: 0; overflow-wrap: anywhere; }
+.ceo-account-list summary { cursor: pointer; }
+#dashboard .panel-nav .ceo-pill[aria-current="page"] { background: #f8dfe2; }

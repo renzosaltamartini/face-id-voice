@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/face-id-voice/panel/room/room.css">
   <script src="/face-id-voice/shared/session.js" defer></script>
   <script src="/face-id-voice/panel/room/editor.js" defer></script>
+  <script src="/face-id-voice/panel/room/live.js" defer></script>
   <script src="/face-id-voice/panel/room/room.js" defer></script>
   <script src="/face-id-voice/panel/room/entries.js" defer></script>
 </head>
@@ -172,8 +173,14 @@
     <p id="entriesTotal" hidden></p>
     <ul id="entriesList" class="entries-list"></ul>
   </dialog>
+  <div id="roomCursors" aria-hidden="true"></div>
   <main class="shared-page" id="sharedPage" hidden>
     <p id="sharedMode"></p>
+    <form class="shared-join" id="sharedJoin" hidden>
+      <label for="sharedName">Tu nombre para editar</label>
+      <input id="sharedName" maxlength="50" autocomplete="nickname" required>
+      <button class="bar-button shared-save" type="submit">Entrar a la página</button>
+    </form>
     <div id="sharedToolbar" class="shared-toolbar" hidden>
       <button class="bar-button shared-save" id="sharedSave" type="button">Guardar cambios</button>
     </div>

@@ -60,6 +60,7 @@ const editor = new BlockEditor(queueSave);
 let token = sessionStorage.getItem(sessionKey) || rememberedSession();
 let folders = [], pages = [], folderId = null, page = null, saved = null;
 let saveTimer, saveTask, statusTimer, editingFolder, searchMode;
+let stopLive, ownerConflict, queueSharedSave;
 let ready = false, navigating = false, started = false, savingFolder = false;
 
 function pageIdFromUrl() {
@@ -351,6 +352,8 @@ function beginEditing() {
 }
 
 function showPage(item, focusTitle = false, browse = false) {
+  stopLive?.();
+  ownerConflict = null;
   browsingFolder = browse;
   clearTimeout(saveTimer);
   page = item;
@@ -372,11 +375,57 @@ function showPage(item, focusTitle = false, browse = false) {
   updatePageBar();
   renderSidebar();
   $('main').scrollTop = 0;
+  if (item.id && !browse) startOwnerLive(item);
   if (focusTitle) title.focus({ preventScroll: true });
 }
 
 function snapshot() {
   return { title: title.value.trim(), content: editor.content };
+}
+
+function applyLiveDraft(draft) {
+  const focused = document.activeElement;
+  const blockIndex = editor.blocks.findIndex(block => block.input === focused);
+  const selection = focused instanceof HTMLTextAreaElement ? [focused.selectionStart, focused.selectionEnd] : [];
+  if (title.value.trim() !== draft.title) {
+    title.value = draft.title;
+    fitText(title);
+    if (focused === title) title.setSelectionRange(...selection);
+  }
+  if (editor.content !== draft.content) {
+    editor.setContent(draft.content);
+    const replacement = editor.blocks[blockIndex]?.input;
+    if (replacement) {
+      replacement.focus({ preventScroll: true });
+      replacement.setSelectionRange(...selection);
+    }
+  }
+  updatePageBar();
+}
+
+function startOwnerLive(item) {
+  stopLive?.();
+  stopLive = liveRoom(documentView, data => request('/room/pages/live', { id: item.id, ...data }), remote => {
+    if (page !== item || saveTask || remote.revision <= item.revision || remote.permission === 'off') return;
+    const base = saved;
+    const merged = mergeRoomDraft(base, snapshot(), remote);
+    if (!merged) {
+      ownerConflict = remote;
+      clearTimeout(saveTimer);
+      saveFeedback('Cambios en conflicto');
+      setStatus('Ambos editaron la misma parte. Usá Ctrl+S o ⌘S para resolver el conflicto.', true);
+      return;
+    }
+    ownerConflict = null;
+    Object.assign(item, { revision: remote.revision, title: remote.title, content: remote.content, updatedAt: remote.updatedAt });
+    saved = { title: remote.title, content: remote.content };
+    applyLiveDraft(merged);
+    const entry = pages.find(candidate => candidate.id === item.id);
+    if (entry) Object.assign(entry, { title: remote.title, updatedAt: remote.updatedAt });
+    renderSidebar();
+    setStatus();
+    queueSave();
+  }, () => {});
 }
 
 function dirty() {
@@ -390,7 +439,8 @@ function saveFeedback(message) {
 }
 
 function queueSave() {
-  if (!page) return;
+  if (queueSharedSave) { queueSharedSave(); return; }
+  if (!page || ownerConflict) return;
   clearTimeout(saveTimer);
   saveFeedback(dirty() ? 'Cambios pendientes' : page.id ? 'Guardado' : '');
   if (!dirty()) return;
@@ -412,6 +462,7 @@ async function ensureFolder() {
 function saveNow() {
   clearTimeout(saveTimer);
   if (saveTask) return saveTask;
+  if (ownerConflict) return Promise.resolve(false);
   if (!dirty()) return Promise.resolve(true);
   const current = snapshot();
   if (current.content.length > 10000) {
@@ -434,7 +485,10 @@ function saveNow() {
       saved = current;
       const sortOrder = pages.find(item => item.id === page.id)?.sortOrder;
       pages = [{ id: page.id, folderId, title: label, updatedAt: page.updatedAt, sortOrder }, ...pages.filter(item => item.id !== page.id)];
-      if (wasDraft && !navigating) history.replaceState(null, '', roomUrl(page.id));
+      if (wasDraft) {
+        if (!navigating) history.replaceState(null, '', roomUrl(page.id));
+        startOwnerLive(page);
+      }
       setStatus();
       saveFeedback('Guardado');
       updatePageBar();
@@ -894,6 +948,22 @@ document.addEventListener('keydown', event => {
   }
   if (event.key.toLowerCase() === 's' && page) {
     event.preventDefault();
+    if (ownerConflict) {
+      const remote = ownerConflict;
+      const keepDraft = confirm('¿Guardar tu versión completa? Elegí Cancelar para conservar la versión compartida.');
+      ownerConflict = null;
+      Object.assign(page, { revision: remote.revision, updatedAt: remote.updatedAt });
+      saved = { title: remote.title, content: remote.content };
+      if (!keepDraft) {
+        Object.assign(page, saved);
+        applyLiveDraft(saved);
+        const entry = pages.find(candidate => candidate.id === page.id);
+        if (entry) Object.assign(entry, { title: remote.title, updatedAt: remote.updatedAt });
+        renderSidebar();
+        saveFeedback('Guardado');
+      }
+      setStatus();
+    }
     saveNow();
   }
 });
@@ -907,43 +977,26 @@ async function openSharedPage(share) {
     document.title = data.title + ' · Room';
     status.textContent = '';
     if (data.permission === 'edit') {
-      const saveButton = $('sharedSave');
-      $('sharedMode').textContent = 'Room · Podés editar';
-      $('sharedToolbar').hidden = false;
-      status.before(documentView);
-      documentView.hidden = false;
-      title.value = data.title;
-      editor.setContent(data.content);
-      fitText(title);
-      editor.fit();
-      let saved = snapshot();
-      window.addEventListener('beforeunload', event => {
-        const draft = snapshot();
-        if (draft.title !== saved.title || draft.content !== saved.content) event.preventDefault();
-      });
-      async function saveShared() {
-        if (saveButton.disabled) return;
-        const draft = snapshot();
-        saveButton.disabled = true;
-        status.textContent = 'Guardando…';
+      const form = $('sharedJoin'), nameInput = $('sharedName');
+      $('sharedMode').textContent = 'Room · Edición compartida';
+      form.hidden = false;
+      nameInput.focus();
+      form.onsubmit = async event => {
+        event.preventDefault();
+        const name = nameInput.value.trim();
+        if (!name || form.inert) return;
+        form.inert = true;
         try {
-          const result = await api('/room/shared/save', { share, revision: data.revision, ...draft });
-          data.revision = result.revision;
-          saved = draft;
-          status.textContent = 'Cambios guardados.';
+          const latest = await api('/room/shared/get', { share });
+          if (latest.permission !== 'edit') throw Error('El enlace ya no permite editar.');
+          form.hidden = true;
+          startGuestLive(share, name, latest);
         } catch (error) {
           status.textContent = error.message;
         } finally {
-          saveButton.disabled = false;
+          form.inert = false;
         }
-      }
-      saveButton.onclick = saveShared;
-      document.addEventListener('keydown', event => {
-        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-          event.preventDefault();
-          saveShared();
-        }
-      });
+      };
     } else {
       $('sharedMode').textContent = 'Room · Solo lectura';
       $('sharedHeading').textContent = data.title;
@@ -958,6 +1011,98 @@ async function openSharedPage(share) {
     status.textContent = error.message;
   }
 }
+function startGuestLive(share, name, initial) {
+  const status = $('sharedStatus'), saveButton = $('sharedSave');
+  $('sharedToolbar').hidden = false;
+  status.before(documentView);
+  documentView.hidden = false;
+  started = true;
+  $('starter').hidden = true;
+  $('blocks').hidden = false;
+  applyLiveDraft(initial);
+  let base = initial, saving = false, timer, conflict, revoked = false, retryAt = 0;
+  const draft = () => ({ title: title.value.trim() || 'Sin título', content: editor.content });
+  function schedule() {
+    clearTimeout(timer);
+    if (revoked || conflict || sameDraft(draft(), base)) return;
+    status.textContent = 'Cambios pendientes…';
+    timer = setTimeout(() => { timer = undefined; saveShared(); }, Math.max(500, retryAt - Date.now()));
+  }
+  queueSharedSave = schedule;
+  async function saveShared() {
+    if (saving || conflict || revoked) return;
+    const current = draft();
+    if (sameDraft(current, base)) return;
+    if (current.content.length > 10000) {
+      status.textContent = 'La página admite hasta 10.000 caracteres.';
+      return;
+    }
+    saving = true;
+    saveButton.disabled = true;
+    status.textContent = 'Guardando…';
+    try {
+      const { revision } = await api('/room/shared/save', { share, revision: base.revision, ...current });
+      base = { ...current, revision };
+      status.textContent = 'Cambios guardados.';
+      schedule();
+    } catch (error) {
+      retryAt = Date.now() + (error.status === 409 ? 800 : 3000);
+      status.textContent = error.status === 409 ? 'Recibiendo cambios…' : error.message;
+    } finally {
+      saving = false;
+      saveButton.disabled = revoked;
+    }
+  }
+  const stop = liveRoom(documentView, data => api('/room/shared/live', { share, name, ...data }), remote => {
+    if (saving) return;
+    if (remote.revision > base.revision) {
+      const merged = mergeRoomDraft(base, draft(), remote);
+      if (!merged) {
+        clearTimeout(timer);
+        timer = undefined;
+        conflict = remote;
+        saveButton.textContent = 'Resolver conflicto';
+        status.textContent = 'Ambos editaron la misma parte de la página.';
+        return;
+      }
+      conflict = null;
+      saveButton.textContent = 'Guardar cambios';
+      base = remote;
+      applyLiveDraft(merged);
+    }
+    if (sameDraft(draft(), base)) status.textContent = 'Edición en vivo · Al día';
+    else if (!conflict && timer === undefined && draft().content.length <= 10000) schedule();
+  }, error => {
+    status.textContent = error.message;
+    if (error.status === 403 || error.status === 404) {
+      revoked = true;
+      documentView.inert = true;
+      saveButton.disabled = true;
+      clearTimeout(timer);
+      stop();
+    }
+  });
+  saveButton.onclick = () => {
+    if (conflict) {
+      const keepDraft = confirm('¿Guardar tu versión completa? Elegí Cancelar para conservar la versión compartida.');
+      base = conflict;
+      conflict = null;
+      saveButton.textContent = 'Guardar cambios';
+      if (!keepDraft) applyLiveDraft(base);
+    }
+    saveShared();
+  };
+  document.addEventListener('keydown', event => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+      event.preventDefault();
+      saveButton.click();
+    }
+  });
+  window.addEventListener('beforeunload', event => {
+    if (saving || !sameDraft(draft(), base)) { event.preventDefault(); event.returnValue = ''; }
+  });
+}
+
 const publicShare = new URLSearchParams(location.hash.slice(1)).get('share');
 if (publicShare) openSharedPage(publicShare);
 else loadRoom();

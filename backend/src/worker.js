@@ -135,6 +135,35 @@ export default {
           body.id, await hash(body.token), origin, now).first();
         return json({ account });
       }
+      async function roomPresence(link, ownerName) {
+        const name = ownerName ?? (typeof body.name === 'string' ? body.name.trim() : '');
+        if (typeof body.client !== 'string' || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(body.client) ||
+            !name || name.length > 50) return fail(400, 'Ingresá un nombre de hasta 50 caracteres.');
+        const client = (ownerName ? 'owner:' : 'guest:') + body.client;
+        const coordinate = value => Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
+        const [,, active] = await DB.batch([
+          query('DELETE FROM room_presence WHERE expires_at <= ?', now),
+          query(`INSERT INTO room_presence (share, client, name, x, y, expires_at)
+            SELECT token, ?, ?, ?, ?, ? FROM room_shares WHERE token = ? AND permission = 'edit'
+            AND (EXISTS (SELECT 1 FROM room_presence WHERE share = ? AND client = ?)
+              OR (SELECT COUNT(*) FROM room_presence WHERE share = ?) < 32)
+            ON CONFLICT(share, client) DO UPDATE SET name = excluded.name, x = excluded.x,
+              y = excluded.y, expires_at = excluded.expires_at`,
+            client, name, coordinate(body.x), coordinate(body.y), now + 8000, link.token, link.token, client, link.token),
+          query(`SELECT r.client, r.name, r.x, r.y FROM room_presence r JOIN room_shares s ON s.token = r.share
+            WHERE r.share = ? AND r.client <> ? AND r.expires_at > ? AND s.permission = 'edit'`, link.token, client, now),
+        ]);
+        const page = await query(`SELECT p.title, p.content, p.revision, p.updated_at AS updatedAt, s.permission
+          FROM room_shares s JOIN room_pages p ON p.account_id = s.account_id AND p.id = s.page_id
+          WHERE s.token = ?`, link.token).first();
+        if (!page || page.permission !== 'edit') return fail(403, 'El enlace ya no permite editar.');
+        return json({ ...page, peers: active.results });
+      }
+      if (route === '/room/shared/live') {
+        if (!validToken(body.share)) return fail(404, 'Este enlace no está disponible.');
+        const link = await query("SELECT token FROM room_shares WHERE token = ? AND permission = 'edit'", body.share).first();
+        return link ? await roomPresence(link) : fail(403, 'El enlace ya no permite editar.');
+      }
       if (route === '/room/shared/get' || route === '/room/shared/save') {
         if (!validToken(body.share)) return fail(404, 'Este enlace no está disponible.');
         if (route === '/room/shared/get') {
@@ -172,7 +201,7 @@ export default {
         qr.make();
         return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
       }
-      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/order', '/room/entries/list', '/room/entries/add', '/room/entries/remove', '/room/entries/toggle', '/room/folders/save', '/room/folders/delete', '/room/folders/move', '/room/pages/move', '/room/pages/get', '/room/share/settings', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
+      if (['/me', '/ceo/accounts', '/room/pages/live', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/order', '/room/entries/list', '/room/entries/add', '/room/entries/remove', '/room/entries/toggle', '/room/folders/save', '/room/folders/delete', '/room/folders/move', '/room/pages/move', '/room/pages/get', '/room/share/settings', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -185,11 +214,29 @@ export default {
           (SELECT COUNT(*) FROM passkeys p WHERE p.account_id = a.id AND p.rp_id = ?) AS passkeyCount
           FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`, now, rpID, key, now).first();
         if (!account) return fail(401, 'Volvé a iniciar sesión.');
-        if (route === '/me' && account.id === CEO_ACCOUNT_ID) {
-          account.ceo = await query(`SELECT
-            (SELECT COUNT(*) FROM accounts) AS accounts,
-            (SELECT MAX(created_at) FROM account_events WHERE account_id = ? AND type IN ('signed_in','account_created')) AS lastSignIn`,
-            account.id).first();
+        if (route === '/me' && account.id === CEO_ACCOUNT_ID?.trim()) account.ceo = true;
+        if (route === '/ceo/accounts') {
+          if (account.id !== CEO_ACCOUNT_ID?.trim()) return fail(403, 'Esta sección es exclusiva de la cuenta CEO.');
+          const after = body.after ?? '';
+          if (after && !validToken(after)) return fail(400, 'Página inválida.');
+          const [listing, total] = await DB.batch([
+            query(`SELECT a.id, a.given_name AS name, a.family_name AS surname, a.email, a.age, a.sex,
+              a.nationality AS country, a.province, a.locality AS city, a.created_at AS createdAt,
+              (SELECT MAX(e.created_at) FROM account_events e WHERE e.account_id = a.id
+                AND e.type = 'signed_in') AS lastSignIn,
+              (SELECT COUNT(*) FROM sessions s WHERE s.account_id = a.id AND s.expires_at > ?) AS activeSessions
+              FROM accounts a WHERE a.id > ? ORDER BY a.id LIMIT 51`, now, after),
+            query('SELECT COUNT(*) AS count FROM accounts'),
+          ]);
+          const accounts = listing.results.slice(0, 50);
+          return json({ accounts, total: total.results[0].count, next: listing.results.length > 50 ? accounts.at(-1).id : null });
+        }
+        if (route === '/room/pages/live') {
+          if (!validToken(body.id)) return fail(400, 'Página inválida.');
+          const share = await query("SELECT token FROM room_shares WHERE account_id = ? AND page_id = ? AND permission = 'edit'",
+            account.id, body.id).first();
+          return share ? await roomPresence(share, (account.name + ' ' + account.surname).trim().slice(0, 50))
+            : json({ permission: 'off', peers: [] });
         }
         if (route === '/account/delete/options') {
           const { results } = await query('SELECT id FROM passkeys WHERE account_id = ? AND rp_id = ?', account.id, rpID).all();
