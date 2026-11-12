@@ -38,13 +38,6 @@
           </div>
           <div id="folders"></div>
         </section>
-        <section class="sidebar-group" aria-labelledby="privateLabel">
-          <div class="group-heading">
-            <h2 id="privateLabel">Privado</h2>
-            <button class="icon-button" id="newPrivatePage" aria-label="Nueva página privada" title="Nueva página privada" data-icon="plus" data-ready disabled></button>
-          </div>
-          <div id="pages"></div>
-        </section>
       </div>
       <a class="sidebar-row panel-link" id="panelLink" href="/face-id-voice/panel" data-icon="panel">Volver al panel</a>
       <div class="workspace">
@@ -142,11 +135,31 @@
 
   <dialog class="dialog" id="shareDialog" aria-labelledby="shareTitle">
     <h2 id="shareTitle">Compartir</h2>
-    <p>Este enlace abre la página en tu cuenta de Renx.</p>
-    <input id="shareUrl" type="url" aria-label="Enlace privado" readonly>
+    <p>Cualquiera que tenga el enlace puede abrir esta página con el permiso que elijas.</p>
+    <label for="sharePermission">Acceso mediante enlace</label>
+    <select id="sharePermission" disabled>
+      <option value="off">Desactivado</option>
+      <option value="read">Solo lectura</option>
+      <option value="edit">Puede editar</option>
+    </select>
+    <p id="shareStatus" role="status"></p>
+    <input id="shareUrl" type="url" aria-label="Enlace público" readonly hidden>
     <div class="dialog-actions">
-      <button class="bar-button primary" id="copyLink">Copiar enlace</button>
+      <button class="bar-button" id="saveShare" disabled>Guardar permiso</button>
+      <button class="bar-button primary" id="copyLink" disabled>Copiar enlace</button>
     </div>
   </dialog>
+  <main class="shared-page" id="sharedPage" hidden>
+    <p id="sharedMode"></p>
+    <form id="sharedForm" hidden>
+      <label for="sharedTitle">Título</label>
+      <input id="sharedTitle" maxlength="120" required>
+      <label for="sharedContent">Contenido</label>
+      <textarea id="sharedContent" maxlength="10000" rows="14"></textarea>
+      <button class="bar-button shared-save" id="sharedSave" type="submit">Guardar cambios</button>
+    </form>
+    <article id="sharedRead" hidden><h1 id="sharedHeading"></h1><div id="sharedBlocks"></div></article>
+    <p id="sharedStatus" role="status"></p>
+  </main>
 </body>
 </html>

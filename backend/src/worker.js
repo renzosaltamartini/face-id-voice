@@ -75,6 +75,27 @@ export default {
       if (raw.length > 24_000) return fail(413, 'Solicitud demasiado grande.');
       const body = JSON.parse(raw);
       const route = new URL(request.url).pathname;
+      if (route === '/room/shared/get' || route === '/room/shared/save') {
+        if (!validToken(body.share)) return fail(404, 'Este enlace no está disponible.');
+        if (route === '/room/shared/get') {
+          const page = await query(`SELECT p.title, p.content, p.revision, s.permission
+            FROM room_shares s JOIN room_pages p ON p.account_id = s.account_id AND p.id = s.page_id
+            WHERE s.token = ?`, body.share).first();
+          return page ? json(page) : fail(404, 'Este enlace no está disponible.');
+        }
+        const title = typeof body.title === 'string' ? body.title.trim() : '';
+        if (!title || title.length > 120 || typeof body.content !== 'string' || body.content.length > 10000 ||
+            !Number.isSafeInteger(body.revision) || body.revision < 1) return fail(400, 'Revisá el título y el contenido.');
+        const result = await query(`UPDATE room_pages SET title = ?, content = ?, revision = revision + 1, updated_at = ?
+          WHERE revision = ? AND (account_id, id) IN (
+            SELECT account_id, page_id FROM room_shares WHERE token = ? AND permission = 'edit'
+          )`, title, body.content, now, body.revision, body.share).run();
+        if (result.meta.changes) return json({ revision: body.revision + 1 });
+        const link = await query('SELECT permission FROM room_shares WHERE token = ?', body.share).first();
+        return link?.permission === 'edit'
+          ? fail(409, 'La página cambió. Copiá tus cambios antes de volver a abrirla.')
+          : fail(403, 'El enlace ya no permite editar.');
+      }
       if (route === '/new') {
         if (!['sign-in', 'registration'].includes(body.purpose)) return fail(400, 'Opción incorrecta.');
         const id = token(), desktop = token(), phone = token(), expires = now + 5 * 60_000;
@@ -91,7 +112,7 @@ export default {
         qr.make();
         return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
       }
-      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/folders/save', '/room/folders/delete', '/room/folders/move', '/room/pages/move', '/room/pages/get', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
+      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/folders/save', '/room/folders/delete', '/room/folders/move', '/room/pages/move', '/room/pages/get', '/room/share/settings', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -192,6 +213,24 @@ export default {
             AND EXISTS (SELECT 1 FROM room_folders WHERE account_id = ? AND id = ?)`,
             body.folderId, account.id, body.id, account.id, body.folderId).run();
           return result.meta.changes ? json({}) : fail(409, 'La página o la carpeta ya no está disponible.');
+        }
+        if (route === '/room/share/settings') {
+          if (!validToken(body.id)) return fail(400, 'Página inválida.');
+          if (body.permission !== undefined) {
+            if (!['off', 'read', 'edit'].includes(body.permission)) return fail(400, 'Permiso inválido.');
+            if (body.permission === 'off') {
+              await query('DELETE FROM room_shares WHERE account_id = ? AND page_id = ?', account.id, body.id).run();
+            } else {
+              const result = await query(`INSERT INTO room_shares (account_id, page_id, token, permission)
+                SELECT account_id, id, ?, ? FROM room_pages WHERE account_id = ? AND id = ?
+                ON CONFLICT(account_id, page_id) DO UPDATE SET permission = excluded.permission`,
+                token(), body.permission, account.id, body.id).run();
+              if (!result.meta.changes) return fail(404, 'La página ya no está disponible.');
+            }
+          }
+          const share = await query('SELECT token, permission FROM room_shares WHERE account_id = ? AND page_id = ?',
+            account.id, body.id).first();
+          return json(share ?? { permission: 'off' });
         }
         if (route === '/room/pages/get') {
           if (!validToken(body.id)) return fail(400, 'Página inválida.');

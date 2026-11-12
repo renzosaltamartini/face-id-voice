@@ -481,6 +481,7 @@ body{background:var(--site-bg)}
   <h2 id="phoneApprovalTitle"></h2>
   <p id="phoneApprovalText"></p>
   <button class="primary" type="button" id="confirmPhone">Continuar</button>
+  <button class="secondary" id="retryFaceAccount" type="button" hidden>No soy yo</button>
 </div>
 <div class="qr-fallback" id="faceRecognitionCard" hidden>
   <h2 id="faceRecognitionTitle"></h2>
@@ -653,7 +654,7 @@ profileForm.addEventListener('submit',async event=>{
   try{
     const result=await api('/finish',{id:desktopRequest.id,token:desktopRequest.desktop,profile});
     const shouldSave=Boolean(phoneRequest?.registeredCredential);
-    const saved=saveRegistrationFace(phoneRequest);
+    const saved=saveRegistrationFace(phoneRequest,result.account);
     finishSignIn(result);
     if(shouldSave&&!saved)panelMessage('La cuenta se creó. El navegador no pudo guardar la referencia facial.');
   }catch(error){
@@ -755,12 +756,16 @@ function bestFaceMatch(model,samples,faces){
   const [best,next]=candidates;
   return best&&best.score>=.65&&(!next||best.score-next.score>=.08)?best.id:null;
 }
-function saveRegistrationFace(request){
+function saveRegistrationFace(request,account){
   if(!request?.faceSamples||!request.registeredCredential)return false;
   try{
     const id=request.registeredCredential;
     const faces=savedFaces().filter(face=>face.id!==id);
-    localStorage.setItem(faceStorageKey,JSON.stringify([{id,samples:request.faceSamples},...faces].slice(0,8)));
+    localStorage.setItem(faceStorageKey,JSON.stringify([{
+      id,samples:request.faceSamples,
+      accountName:account ? [account.name,account.surname].filter(Boolean).join(' ') : undefined,
+      emailHint:account?.email ? account.email.split('@')[0].slice(0,1)+'•••@'+account.email.split('@')[1] : undefined
+    },...faces].slice(0,8)));
     request.faceSamples=null;
     updateFaceButtons();
     return true;
@@ -786,7 +791,7 @@ $('configureFace').onclick=async()=>{
       await api('/passkey/register',{token,response});
       if(token!==sessionToken)return;
       accountCredentials.add(response.id);
-      const saved=saveRegistrationFace({registeredCredential:response.id,faceSamples:result.samples});
+      const saved=saveRegistrationFace({registeredCredential:response.id,faceSamples:result.samples},panelAccount);
       showScreen('dashboard');
       selectPanel('devices','security');
       refreshAccount().catch(()=>{});
@@ -1175,6 +1180,7 @@ function showVerificationMode(mode){
   $('deviceChoice').hidden=mode!=='choice';
   $('qrFallback').hidden=mode!=='qr';
   $('phoneApproval').hidden=mode!=='approval';
+  $('retryFaceAccount').hidden=true;
   $('scannerCard').hidden=mode!=='scanner';
   $('faceRecognitionCard').hidden=mode!=='face';
   for(const id of ['camera','phaseCard','verificationProgress'])$(id).hidden=mode!=='camera';
@@ -1519,7 +1525,14 @@ async function flow(){
     if(current.purpose==='registration'){
       showApproval('Guardá tu clave de acceso','Usá Face ID, huella o el PIN de tu celular para proteger tu cuenta.','Crear clave de acceso',approvePhone);
     }else{
-      showApproval('Rostro reconocido','Confirmá el ingreso con la clave vinculada a este rostro.','Confirmar ingreso',approvePhone);
+      const face=savedFaces().find(item=>item.id===current.credentialId);
+      showApproval(face?.accountName||'¿Es tu cuenta?',face?.emailHint||'', 'Sí, es mi cuenta',approvePhone);
+      const retry=$('retryFaceAccount');
+      retry.hidden=false;
+      retry.onclick=()=>{
+        current.credentialId=null;
+        startFace();
+      };
     }
   }catch(error){
     if(phoneRequest!==current)return;

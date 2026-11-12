@@ -162,22 +162,29 @@ function renderSidebar() {
       button.append(count);
       item.append(button, more);
       folderList.append(item);
-      if (expanded.has(folder.id)) appendFolders(folder.id, depth + 1);
+      if (expanded.has(folder.id)) {
+        if (folder.id === folderId && page && !page.id && !browsingFolder) appendDraft(depth + 1);
+        for (const entry of pages.filter(entry => entry.folderId === folder.id)) {
+          const pageEntry = pageRow(entry);
+          pageEntry.style.marginInlineStart = Math.min(depth + 1, 7) * 12 + 'px';
+          folderList.append(pageEntry);
+        }
+        appendFolders(folder.id, depth + 1);
+      }
     }
   }
-  appendFolders(null, 0);
-  renderFolderContents();
-  if (!folders.length) folderList.append(note('Tus carpetas aparecerán acá.'));
-  const list = $('pages');
-  list.replaceChildren();
-  if (page && !page.id && !browsingFolder) {
+  function appendDraft(depth) {
     const draft = row(title.value.trim() || 'Nueva página', 'file');
     draft.setAttribute('aria-current', 'page');
+    draft.style.marginInlineStart = Math.min(depth, 7) * 12 + 'px';
+    draft.style.width = 'calc(100% - ' + draft.style.marginInlineStart + ')';
     draft.onclick = () => title.focus();
-    list.append(draft);
+    folderList.append(draft);
   }
-  for (const item of pages.filter(item => item.folderId === folderId)) list.append(pageRow(item));
-  if (!list.children.length) list.append(note('Todavía no hay páginas.'));
+  appendFolders(null, 0);
+  if (!folders.length) folderList.append(note('Tus carpetas aparecerán acá.'));
+  if (!folderId && page && !page.id && !browsingFolder) appendDraft(0);
+  renderFolderContents();
 }
 
 function renderFolderContents() {
@@ -625,7 +632,7 @@ $('roomHome').onclick = () => {
   if (recent) openPage(recent.id, recent.folderId);
   else openPage(null, folders[0]?.id, { focus: true });
 };
-$('newPage').onclick = $('quickPage').onclick = $('newPrivatePage').onclick = () => openPage(null, folderId, { focus: true });
+$('newPage').onclick = $('quickPage').onclick = () => openPage(null, folderId, { focus: true });
 $('newFolder').onclick = () => openFolderDialog();
 $('addSubfolder').onclick = () => openFolderDialog(null, folderId);
 $('addFolderPage').onclick = () => openPage(null, folderId, { focus: true });
@@ -660,7 +667,7 @@ title.oninput = () => {
   fitText(title);
   if (title.value.trim()) beginEditing();
   updatePageBar();
-  const selected = $('pages').querySelector('[aria-current="page"] .row-title');
+  const selected = $('folders').querySelector('[aria-current="page"] .row-title');
   if (selected) {
     selected.textContent = title.value.trim() || 'Nueva página';
     selected.parentElement.title = selected.textContent;
@@ -687,9 +694,39 @@ $('pageMenu').onclick = () => {
   else showActions(title.value.trim() || 'Nueva página', [{ label: 'Guardar ahora', run: () => saveNow() }]);
 };
 $('cancelDeletePage').onclick = () => $('deletePageDialog').close();
+const shareDialog = $('shareDialog');
+let shareRequest = 0;
+async function updateShare(id, permission) {
+  const load = ++shareRequest;
+  const selector = $('sharePermission');
+  selector.disabled = $('saveShare').disabled = $('copyLink').disabled = true;
+  $('shareStatus').textContent = 'Cargando…';
+  try {
+    const link = await request('/room/share/settings', { id, permission });
+    if (load !== shareRequest) return;
+    selector.value = link.permission;
+    const address = new URL(roomUrl(), location.origin);
+    address.hash = link.token ? 'share=' + link.token : '';
+    $('shareUrl').value = link.token ? address.href : '';
+    $('shareUrl').hidden = !link.token;
+    $('shareStatus').textContent = permission === undefined ? '' : 'Permiso guardado.';
+  } catch (error) {
+    if (load === shareRequest) $('shareStatus').textContent = error.message;
+  } finally {
+    if (load === shareRequest) {
+      selector.disabled = $('saveShare').disabled = false;
+      $('copyLink').disabled = !$('shareUrl').value;
+    }
+  }
+}
 $('sharePage').onclick = () => {
-  $('shareUrl').value = new URL(roomUrl(page.id), location.origin).href;
-  $('shareDialog').showModal();
+  const id = page.id;
+  $('shareUrl').value = '';
+  $('shareUrl').hidden = true;
+  $('sharePermission').value = 'off';
+  $('saveShare').onclick = () => updateShare(id, $('sharePermission').value);
+  shareDialog.showModal();
+  updateShare(id);
 };
 $('copyLink').onclick = async () => {
   try {
@@ -723,4 +760,58 @@ document.addEventListener('keydown', event => {
     saveNow();
   }
 });
-loadRoom();
+async function openSharedPage(share) {
+  $('layout').hidden = true;
+  $('sharedPage').hidden = false;
+  const status = $('sharedStatus');
+  status.textContent = 'Cargando página…';
+  try {
+    const data = await api('/room/shared/get', { share });
+    document.title = data.title + ' · Room';
+    status.textContent = '';
+    if (data.permission === 'edit') {
+      const form = $('sharedForm');
+      const sharedTitle = $('sharedTitle');
+      const content = $('sharedContent');
+      sharedTitle.value = data.title;
+      content.value = data.content;
+      $('sharedMode').textContent = 'Room · Podés editar';
+      form.hidden = false;
+      let saved = [sharedTitle.value, content.value];
+      window.addEventListener('beforeunload', event => {
+        if (sharedTitle.value !== saved[0] || content.value !== saved[1]) event.preventDefault();
+      });
+      form.onsubmit = async event => {
+        event.preventDefault();
+        if ($('sharedSave').disabled) return;
+        const draft = [sharedTitle.value, content.value];
+        $('sharedSave').disabled = true;
+        status.textContent = 'Guardando…';
+        try {
+          const result = await api('/room/shared/save', { share, revision: data.revision, title: draft[0], content: draft[1] });
+          data.revision = result.revision;
+          saved = draft;
+          status.textContent = 'Cambios guardados.';
+        } catch (error) {
+          status.textContent = error.message;
+        } finally {
+          $('sharedSave').disabled = false;
+        }
+      };
+    } else {
+      $('sharedMode').textContent = 'Room · Solo lectura';
+      $('sharedHeading').textContent = data.title;
+      for (const line of data.content.split('\n')) {
+        const block = document.createElement('div');
+        block.textContent = line || ' ';
+        $('sharedBlocks').append(block);
+      }
+      $('sharedRead').hidden = false;
+    }
+  } catch (error) {
+    status.textContent = error.message;
+  }
+}
+const publicShare = new URLSearchParams(location.hash.slice(1)).get('share');
+if (publicShare) openSharedPage(publicShare);
+else loadRoom();

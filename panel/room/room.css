@@ -323,3 +323,22 @@ kbd { font: inherit; }
 }
 .sidebar-row[aria-current="page"] .icon { color: currentColor; }
 .dialog h2 { font: 400 28px/1.12 var(--renx-serif); }
+
+.page-title, #folderHeading { font-family: Poppins, Arial, sans-serif; font-weight: 500; }
+.page-title { font-size: clamp(32px,5vw,46px); line-height: 1.2; }
+.sidebar-row[aria-current="page"], .folder-row[data-current="true"] {
+  color: var(--text); background: #f1eee7; box-shadow: none;
+}
+#folders .page-row { margin-block: 1px; }
+#folders .page-row .sidebar-row { font-size: 12px; }
+#sharePermission, .shared-page :is(input,textarea) {
+  width: 100%; padding: 9px 11px; border: 1px solid var(--border);
+  border-radius: 7px; background: #fff; color: var(--text); font: inherit;
+}
+.shared-page { width: min(720px,calc(100% - 32px)); margin: clamp(35px,8vw,100px) auto; }
+.shared-page h1 { font-size: clamp(27px,6vw,44px); font-weight: 500; overflow-wrap: anywhere; }
+.shared-page form { display: grid; gap: 9px; }
+.shared-page textarea { resize: vertical; }
+.shared-save { justify-self: start; background: var(--renx-blue); color: #fff; }
+.shared-save:hover { background: var(--renx-blue-hover); color: #fff; }
+#sharedBlocks { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
