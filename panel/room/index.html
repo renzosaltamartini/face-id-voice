@@ -58,6 +58,7 @@
           <span class="privacy" data-icon="lock">Privada</span>
         </div>
         <div class="page-actions" id="pageActions" hidden>
+          <span id="saveFeedback" class="edited" role="status"></span>
           <span class="edited" id="editedAt"></span>
           <button class="bar-button" id="sharePage" data-icon="lock" hidden>Compartir</button>
           <button class="icon-button" id="pageMenu" aria-label="Opciones de página" title="Opciones de página" data-icon="more"></button>
@@ -115,6 +116,15 @@
   <dialog class="dialog" id="actionsDialog" aria-labelledby="actionsTitle">
     <h2 id="actionsTitle"></h2>
     <div id="actionList"></div>
+  </dialog>
+
+  <dialog class="dialog" id="deletePageDialog" aria-labelledby="deletePageTitle">
+    <h2 id="deletePageTitle">¿Borrar esta página?</h2>
+    <p>Se eliminará <strong id="deletePageName"></strong> y todo su contenido.</p>
+    <div class="dialog-actions">
+      <button class="bar-button" id="cancelDeletePage" autofocus>Cancelar</button>
+      <button class="bar-button delete-button" id="confirmDeletePage">Borrar página</button>
+    </div>
   </dialog>
 
   <dialog class="dialog" id="shareDialog" aria-labelledby="shareTitle">

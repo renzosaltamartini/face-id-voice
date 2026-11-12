@@ -108,7 +108,14 @@ function pageRow(item, includeFolder = false) {
     if (searchDialog.open) searchDialog.close();
     openPage(item.id, item.folderId);
   };
-  return button;
+  if (includeFolder) return button;
+  const itemRow = document.createElement('div');
+  itemRow.className = 'folder-row page-row';
+  itemRow.dataset.current = String(item.id === page?.id);
+  const more = iconButton('more', 'Opciones de ' + item.title);
+  more.onclick = () => pageActions(item);
+  itemRow.append(button, more);
+  return itemRow;
 }
 
 function note(message) {
@@ -134,6 +141,11 @@ function renderSidebar() {
     };
     const more = iconButton('more', 'Opciones de ' + folder.name);
     more.onclick = () => folderActions(folder);
+    const count = document.createElement('span');
+    count.className = 'folder-count';
+    count.setAttribute('aria-hidden', 'true');
+    count.textContent = pages.filter(entry => entry.folderId === folder.id).length;
+    button.append(count);
     item.append(button, more);
     folderList.append(item);
   }
@@ -178,6 +190,12 @@ function showPage(item, focusTitle = false) {
   started = Boolean(item.id);
   title.value = item.title;
   documentView.hidden = false;
+  documentView.getAnimations().forEach(animation => animation.cancel());
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    documentView.animate([{ opacity: 0, transform: 'translateY(7px)' }, { opacity: 1, transform: 'translateY(0)' }],
+      { duration: 200, easing: 'ease-out' });
+  }
+  saveFeedback(item.id ? 'Guardado' : '');
   $('starter').hidden = started;
   $('blocks').hidden = !started;
   editor.setContent(item.content);
@@ -199,9 +217,14 @@ function dirty() {
   return current.title !== saved.title || current.content !== saved.content;
 }
 
+function saveFeedback(message) {
+  $('saveFeedback').textContent = message;
+}
+
 function queueSave() {
   if (!page) return;
   clearTimeout(saveTimer);
+  saveFeedback(dirty() ? 'Cambios pendientes' : page.id ? 'Guardado' : '');
   if (!dirty()) return;
   saveTimer = setTimeout(() => saveNow(), 650);
 }
@@ -224,9 +247,11 @@ function saveNow() {
   if (!dirty()) return Promise.resolve(true);
   const current = snapshot();
   if (current.content.length > 10000) {
+    saveFeedback('Pendiente');
     setStatus('La página admite hasta 10.000 caracteres. Acortá el contenido para guardar.', true);
     return Promise.resolve(false);
   }
+  saveFeedback('Guardando…');
   saveTask = (async () => {
     try {
       const pageFolder = await ensureFolder();
@@ -242,11 +267,13 @@ function saveNow() {
       pages = [{ id: page.id, folderId, title: label, updatedAt: page.updatedAt }, ...pages.filter(item => item.id !== page.id)];
       if (wasDraft && !navigating) history.replaceState(null, '', roomUrl(page.id));
       setStatus();
+      saveFeedback('Guardado');
       updatePageBar();
       renderSidebar();
       if (dirty()) queueSave();
       return true;
     } catch (error) {
+      saveFeedback('Error al guardar');
       setStatus(error.message, true);
       return false;
     } finally {
@@ -372,18 +399,79 @@ async function deleteFolder(folder) {
   }
 }
 
-async function deletePage() {
-  if (!page?.id || navigating || !confirm('¿Borrar esta página?')) return;
+function pageActions(item) {
+  const actions = [
+    { label: 'Renombrar página', run: async () => {
+      await openPage(item.id, item.folderId);
+      if (page?.id === item.id) { title.focus(); title.select(); }
+    } },
+    { label: 'Duplicar página', run: () => duplicatePage(item) },
+    { label: 'Borrar página', danger: true, run: () => confirmDeletePage(item) },
+  ];
+  if (page?.id === item.id) actions.unshift({ label: 'Guardar ahora', run: () => saveNow() });
+  showActions(item.title, actions);
+}
+
+async function duplicatePage(item) {
+  if (navigating) return;
   navigating = true;
+  documentView.inert = true;
+  let copy;
   try {
-    documentView.inert = true;
     if (!await flushChanges()) return;
-    await request('/room/pages/delete', { id: page.id });
-    pages = pages.filter(item => item.id !== page.id);
-    history.replaceState(null, '', roomUrl());
-    showPage({ id: null, folderId, title: '', content: '', revision: 0 });
+    const original = await request('/room/pages/get', { id: item.id });
+    const copyTitle = original.title.slice(0, 112).trimEnd() + ' (copia)';
+    const result = await request('/room/pages/save', {
+      folderId: original.folderId, title: copyTitle, content: original.content,
+    });
+    copy = { ...result, folderId: original.folderId, title: copyTitle, content: original.content };
+    pages.unshift(copy);
+    history.pushState(null, '', roomUrl(copy.id));
+    if (mobile.matches) setSidebar(false);
+    showPage(copy);
+    setStatus('Página duplicada.');
+  } catch (error) {
+    setStatus(error.message, true);
+  } finally {
+    documentView.inert = false;
+    navigating = false;
+  }
+  if (copy) { title.focus(); title.select(); }
+}
+
+function confirmDeletePage(item) {
+  if (navigating) return;
+  $('deletePageName').textContent = item.title;
+  $('confirmDeletePage').onclick = () => {
+    $('deletePageDialog').close();
+    deletePage(item);
+  };
+  $('deletePageDialog').showModal();
+}
+
+async function deletePage(item) {
+  if (navigating) return;
+  navigating = true;
+  const active = page?.id === item.id;
+  try {
+    if (active) {
+      documentView.inert = true;
+      clearTimeout(saveTimer);
+      // Let an in-flight write finish before removing the page.
+      if (saveTask) await saveTask;
+      clearTimeout(saveTimer);
+    }
+    await request('/room/pages/delete', { id: item.id });
+    pages = pages.filter(entry => entry.id !== item.id);
+    if (active) {
+      history.replaceState(null, '', roomUrl());
+      showPage({ id: null, folderId, title: '', content: '', revision: 0 });
+    } else {
+      renderSidebar();
+    }
     setStatus('Página borrada.');
   } catch (error) {
+    if (active && dirty()) saveFeedback('Cambios pendientes');
     setStatus(error.message, true);
   } finally {
     documentView.inert = false;
@@ -509,10 +597,10 @@ document.querySelectorAll('[data-start]').forEach(button => {
   button.onclick = () => { beginEditing(); editor.start(button.dataset.start); };
 });
 $('pageMenu').onclick = () => {
-  const actions = [{ label: 'Guardar ahora', run: () => saveNow() }];
-  if (page?.id) actions.push({ label: 'Borrar página', danger: true, run: deletePage });
-  showActions(title.value.trim() || 'Nueva página', actions);
+  if (page?.id) pageActions({ ...page, title: title.value.trim() || 'Sin título' });
+  else showActions(title.value.trim() || 'Nueva página', [{ label: 'Guardar ahora', run: () => saveNow() }]);
 };
+$('cancelDeletePage').onclick = () => $('deletePageDialog').close();
 $('sharePage').onclick = () => {
   $('shareUrl').value = new URL(roomUrl(page.id), location.origin).href;
   $('shareDialog').showModal();

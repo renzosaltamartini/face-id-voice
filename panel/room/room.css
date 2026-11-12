@@ -245,3 +245,40 @@ kbd { font: inherit; }
   .block:focus-within .block-tools, .block[data-hint="true"] .block-tools { opacity: 1; }
   .folder-row > .icon-button { visibility: visible; }
 }
+
+.page-row { margin-bottom: 2px; }
+.page-row > .sidebar-row { width: auto; min-width: 0; }
+.page-row[data-current="true"] { box-shadow: inset 2px 0 #8cabc0; }
+.folder-count { margin-left: auto; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.dialog .delete-button { background: #ad423c; color: white; padding-inline: 10px; }
+.dialog .delete-button:hover { background: #c44f48; }
+#deletePageName { overflow-wrap: anywhere; }
+#saveFeedback:not(:empty) { padding: 2px 7px; border-radius: 6px; background: var(--hover); font-size: 11px; }
+.sidebar-row, .icon-button, .bar-button, .starter-actions button {
+  transition: background-color .16s ease, color .16s ease, opacity .16s ease;
+}
+.starter-actions button { transition: background-color .16s ease, transform .16s ease; }
+.starter-actions button:hover { transform: translateY(-2px); }
+@keyframes room-pop {
+  from { opacity: 0; scale: .98; translate: 0 5px; }
+  to { opacity: 1; scale: 1; translate: 0 0; }
+}
+@keyframes room-fade { from { opacity: 0; } to { opacity: 1; } }
+.dialog[open], .block-picker:not([hidden]), .status:not([hidden]), .starter:not([hidden]) {
+  animation: room-pop .18s ease-out both;
+}
+.dialog[open]::backdrop { animation: room-fade .18s ease-out; }
+@media (max-width: 720px) {
+  .sidebar { animation: room-fade .18s ease-out; }
+  .sidebar-row > .row-title { flex: 1; }
+  .page-row > .icon-button { visibility: visible; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar, .dialog[open], .dialog[open]::backdrop, .block-picker:not([hidden]),
+  .status:not([hidden]), .starter:not([hidden]) { animation: none; }
+  .sidebar-row, .icon-button, .bar-button, .starter-actions button { transition: none; }
+  .starter-actions button:hover { transform: none; }
+}
+.page-row > .icon-button { visibility: visible; opacity: .55; }
+.page-row:hover > .icon-button, .page-row[data-current="true"] > .icon-button,
+.page-row > .icon-button:focus-visible { opacity: 1; }
