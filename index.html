@@ -463,7 +463,6 @@ body{background:var(--site-bg)}
 <section class="screen" id="verify" hidden><div class="verify-shell"><button class="back" id="backButton">← &nbsp; Volver</button><div class="verify-header"><h1>Verificá tu identidad</h1></div><div class="device-choice" id="deviceChoice" hidden>
   <p id="devicePrompt">Elegí cómo continuar.</p>
   <button class="primary" id="verifyHere" type="button">Iniciar sesión</button>
-  <label class="remember-device"><input id="rememberDevice" type="checkbox"> Recordar este dispositivo</label>
   <button class="secondary" id="verifyPhone" type="button">Registrarme</button>
 </div>
 <div class="phase-top" id="phaseCard" aria-live="polite"><span class="phase-emoji" id="phaseEmoji">👀</span><span class="phase-label" id="phaseLabel">Mirá al frente</span><span class="phase-count" id="phaseCount">PASO 1 DE 5</span></div><div class="camera" id="camera"><video id="video" autoplay playsinline muted></video><canvas id="overlay"></canvas><svg class="face-guide" viewBox="0 0 320 332" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -1190,7 +1189,7 @@ function showChoices(){
 function finishSignIn({session,account}){
   sessionToken=session;
   sessionStorage.setItem(sessionKey,session);
-  const remembered=setRememberedSession($('rememberDevice').checked?session:null);
+  const remembered=setRememberedSession(session);
   syncRememberControl();
   desktopRequest=null;
   phoneRequest=null;
@@ -1200,7 +1199,7 @@ function finishSignIn({session,account}){
   selectPanel('overview');
   renderAccount(account);
   welcome(account.name);
-  if(!remembered&&$('rememberDevice').checked)panelMessage('No se pudo recordar la sesión en este navegador.');
+  if(!remembered)panelMessage('No se pudo recordar la sesión en este navegador.');
   refreshAccount().catch(error=>panelMessage(error.message));
   refreshFaceCredential();
 }
@@ -1409,7 +1408,6 @@ $('logoutButton').onclick=()=>{
   if(remembered&&remembered!==sessionToken)api('/logout',{token:remembered}).catch(()=>{});
   setRememberedSession(null);
   sessionToken=null;
-  $('rememberDevice').checked=false;
   syncRememberControl();
   panelAccount=null;
   accountCredentials.clear();
