@@ -70,6 +70,15 @@
         <p id="loadErrorText"></p><button class="bar-button" id="retryLoad">Reintentar</button>
       </div>
 
+      <section class="folder-contents" id="folderContents" hidden>
+        <nav id="folderPath" aria-label="Ruta de la carpeta"></nav>
+        <h1 id="folderHeading"></h1>
+        <div class="folder-tools">
+          <button class="bar-button" id="addSubfolder" data-icon="folder">Nueva subcarpeta</button>
+          <button class="bar-button" id="addFolderPage" data-icon="plus">Nueva página</button>
+        </div>
+        <div id="folderEntries"></div>
+      </section>
       <article class="document" id="document" hidden>
         <textarea class="page-title" id="title" rows="1" maxlength="120" placeholder="Nueva página" aria-label="Título de la página"></textarea>
         <div class="blocks" id="blocks" aria-label="Bloques de la página"></div>

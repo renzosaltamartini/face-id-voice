@@ -91,7 +91,7 @@ export default {
         qr.make();
         return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
       }
-      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/folders/save', '/room/folders/delete', '/room/pages/get', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
+      if (['/me', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/folders/save', '/room/folders/delete', '/room/folders/move', '/room/pages/move', '/room/pages/get', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -145,7 +145,7 @@ export default {
         }
         if (route === '/room/list') {
           const [folders, pages] = await DB.batch([
-            query('SELECT id, name FROM room_folders WHERE account_id = ? ORDER BY name COLLATE NOCASE, id', account.id),
+            query('SELECT id, name, parent_id AS parentId FROM room_folders WHERE account_id = ? ORDER BY name COLLATE NOCASE, id', account.id),
             query(`SELECT id, folder_id AS folderId, title, updated_at AS updatedAt
               FROM room_pages WHERE account_id = ? ORDER BY updated_at DESC, id`, account.id),
           ]);
@@ -155,19 +155,43 @@ export default {
           const name = typeof body.name === 'string' ? body.name.trim() : '';
           if (!name || name.length > 70) return fail(400, 'Ingresá un nombre de hasta 70 caracteres.');
           if (body.id != null && !validToken(body.id)) return fail(400, 'Carpeta inválida.');
+          const parent = body.parentId ?? null;
+          if (parent !== null && !validToken(parent)) return fail(400, 'Carpeta superior inválida.');
           const id = body.id ?? token();
           const saved = body.id
             ? await query('UPDATE room_folders SET name = ? WHERE account_id = ? AND id = ?', name, account.id, id).run()
-            : await query(`INSERT INTO room_folders (account_id, id, name)
-                SELECT ?, ?, ? WHERE (SELECT COUNT(*) FROM room_folders WHERE account_id = ?) < 100`,
-              account.id, id, name, account.id).run();
+            : await query(`INSERT INTO room_folders (account_id, id, name, parent_id)
+                SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM room_folders WHERE account_id = ?) < 100
+                AND (? IS NULL OR EXISTS (SELECT 1 FROM room_folders WHERE account_id = ? AND id = ?))`,
+              account.id, id, name, parent, account.id, parent, account.id, parent).run();
           if (!saved.meta.changes) return fail(409, body.id ? 'La carpeta ya no está disponible.' : 'Alcanzaste el límite de 100 carpetas.');
           return json({ id });
         }
-        if (route === '/room/folders/delete') {
+        if (route === '/room/folders/move' || route === '/room/folders/delete') {
           if (!validToken(body.id)) return fail(400, 'Carpeta inválida.');
-          await query('DELETE FROM room_folders WHERE account_id = ? AND id = ?', account.id, body.id).run();
-          return json({});
+          const subtree = `WITH RECURSIVE subtree(id) AS (
+            SELECT id FROM room_folders WHERE account_id = ? AND id = ?
+            UNION SELECT f.id FROM room_folders f JOIN subtree s ON f.parent_id = s.id WHERE f.account_id = ?
+          )`;
+          if (route === '/room/folders/delete') {
+            await query(subtree + ' DELETE FROM room_folders WHERE account_id = ? AND id IN (SELECT id FROM subtree)',
+              account.id, body.id, account.id, account.id).run();
+            return json({});
+          }
+          const parent = body.parentId;
+          if (parent !== null && !validToken(parent)) return fail(400, 'Carpeta superior inválida.');
+          const result = await query(subtree + ` UPDATE room_folders SET parent_id = ? WHERE account_id = ? AND id = ?
+            AND (? IS NULL OR (EXISTS (SELECT 1 FROM room_folders WHERE account_id = ? AND id = ?)
+              AND NOT EXISTS (SELECT 1 FROM subtree WHERE id = ?)))`,
+            account.id, body.id, account.id, parent, account.id, body.id, parent, account.id, parent, parent).run();
+          return result.meta.changes ? json({}) : fail(409, 'No se puede mover la carpeta a ese destino.');
+        }
+        if (route === '/room/pages/move') {
+          if (!validToken(body.id) || !validToken(body.folderId)) return fail(400, 'Destino inválido.');
+          const result = await query(`UPDATE room_pages SET folder_id = ? WHERE account_id = ? AND id = ?
+            AND EXISTS (SELECT 1 FROM room_folders WHERE account_id = ? AND id = ?)`,
+            body.folderId, account.id, body.id, account.id, body.folderId).run();
+          return result.meta.changes ? json({}) : fail(409, 'La página o la carpeta ya no está disponible.');
         }
         if (route === '/room/pages/get') {
           if (!validToken(body.id)) return fail(400, 'Página inválida.');

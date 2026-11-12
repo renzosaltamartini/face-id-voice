@@ -296,6 +296,24 @@ body{background:var(--site-bg)}
   text-decoration:none;border-color:#617d8b;background:#26343b;color:#d4e8ef;
   box-shadow:0 0 11px #9ccadd40,inset 0 0 9px #a8c2d21a
 }
+
+#panel-devices{display:grid;gap:24px}
+#panel-devices[hidden]{display:none}
+#panel-devices .panel-group{margin:12px 0 0;display:grid;gap:16px}
+#panel-devices .panel-section-header{margin:0}
+#panel-devices .panel-card{padding:clamp(16px,2.4vw,28px)}
+#panel-devices .panel-actions{gap:10px;align-items:center}
+#panel-devices .remember-device{justify-content:flex-start;padding:8px 0;margin-right:auto}
+#panel-devices .device-list{display:grid;gap:10px;margin-top:16px}
+#panel-devices .device-list li{border:1px solid var(--panel-line);border-radius:12px;padding:12px 14px;gap:14px}
+#panel-devices .panel-extra{margin:0}
+#panel-security .panel-grid{gap:14px}
+#panel-security .panel-grid .panel-card{min-height:0}
+#panel-security .panel-grid .panel-card button{margin-top:10px}
+@media(max-width:600px){
+  #panel-devices .device-list li{display:grid}
+  #panel-devices .panel-row-actions{justify-content:flex-start}
+}
 </style><script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script></head><body>
 <section class="screen" id="home">

@@ -11,6 +11,9 @@ const icons = {
   panel: '<path d="M13 5h6v14h-6M3 12h12m-8-4-4 4 4 4"/>',
   lock: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/>',
   more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  move: '<path d="M4 12h16m-4-4 4 4-4 4"/>',
+  trash: '<path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
   grip: '<path d="M9 4h.01M15 4h.01M9 12h.01m6 0h.01M9 20h.01m6 0h.01" stroke-width="3"/>',
   text: '<path d="M5 6V4h14v2M12 4v16m-3 0h6"/>',
   heading: '<path d="M5 5v14M19 5v14M5 12h14"/>',
@@ -48,6 +51,8 @@ const folderDialog = $('folderDialog');
 const searchDialog = $('searchDialog');
 const actionsDialog = $('actionsDialog');
 const mobile = matchMedia('(max-width: 720px)');
+let newFolderParent = null;
+let browsingFolder = false;
 const editor = new BlockEditor(queueSave);
 let token = sessionStorage.getItem(sessionKey) || rememberedSession();
 let folders = [], pages = [], folderId = null, page = null, saved = null;
@@ -79,6 +84,7 @@ function setStatus(message = '', error = false) {
 
 function setSidebar(open) {
   $('layout').dataset.sidebar = open ? 'open' : 'closed';
+  $('sidebar').inert = !open;
   $('showSidebar').hidden = open;
   $('showSidebar').setAttribute('aria-expanded', String(open));
   $('sidebarBackdrop').hidden = !open || !mobile.matches;
@@ -125,34 +131,46 @@ function note(message) {
   return p;
 }
 
+function folderPath(id) {
+  const path = [];
+  for (let folder = folders.find(item => item.id === id); folder; folder = folders.find(item => item.id === folder.parentId)) {
+    if (path.includes(folder)) break;
+    path.unshift(folder);
+  }
+  return path;
+}
+
 function renderSidebar() {
   const folderList = $('folders');
   folderList.replaceChildren();
-  for (const folder of folders) {
-    const item = document.createElement('div');
-    item.className = 'folder-row';
-    item.dataset.current = String(folder.id === folderId);
-    const button = row(folder.name, 'folder');
-    button.setAttribute('aria-pressed', item.dataset.current);
-    button.onclick = () => {
-      if (folder.id === folderId) return;
-      const firstPage = pages.find(item => item.folderId === folder.id);
-      openPage(firstPage?.id, folder.id);
-    };
-    const more = iconButton('more', 'Opciones de ' + folder.name);
-    more.onclick = () => folderActions(folder);
-    const count = document.createElement('span');
-    count.className = 'folder-count';
-    count.setAttribute('aria-hidden', 'true');
-    count.textContent = pages.filter(entry => entry.folderId === folder.id).length;
-    button.append(count);
-    item.append(button, more);
-    folderList.append(item);
+  const expanded = new Set(folderPath(folderId).map(item => item.id));
+  function appendFolders(parent, depth) {
+    for (const folder of folders.filter(item => (item.parentId ?? null) === parent)) {
+      const item = document.createElement('div');
+      item.className = 'folder-row';
+      item.style.marginInlineStart = Math.min(depth, 6) * 12 + 'px';
+      item.dataset.current = String(folder.id === folderId);
+      const button = row(folder.name, 'folder');
+      button.setAttribute('aria-pressed', item.dataset.current);
+      button.onclick = () => openPage(null, folder.id, { browse: true });
+      const more = iconButton('more', 'Opciones de ' + folder.name);
+      more.onclick = () => folderActions(folder);
+      const count = document.createElement('span');
+      count.className = 'folder-count';
+      count.setAttribute('aria-hidden', 'true');
+      count.textContent = pages.filter(entry => entry.folderId === folder.id).length + folders.filter(entry => entry.parentId === folder.id).length;
+      button.append(count);
+      item.append(button, more);
+      folderList.append(item);
+      if (expanded.has(folder.id)) appendFolders(folder.id, depth + 1);
+    }
   }
+  appendFolders(null, 0);
+  renderFolderContents();
   if (!folders.length) folderList.append(note('Tus carpetas aparecerán acá.'));
   const list = $('pages');
   list.replaceChildren();
-  if (page && !page.id) {
+  if (page && !page.id && !browsingFolder) {
     const draft = row(title.value.trim() || 'Nueva página', 'file');
     draft.setAttribute('aria-current', 'page');
     draft.onclick = () => title.focus();
@@ -160,6 +178,27 @@ function renderSidebar() {
   }
   for (const item of pages.filter(item => item.folderId === folderId)) list.append(pageRow(item));
   if (!list.children.length) list.append(note('Todavía no hay páginas.'));
+}
+
+function renderFolderContents() {
+  const view = $('folderContents');
+  view.hidden = !browsingFolder;
+  if (!browsingFolder) return;
+  const path = folderPath(folderId);
+  $('folderPath').replaceChildren(...path.map((folder, index) => {
+    const button = row(folder.name, 'folder');
+    if (index === path.length - 1) button.setAttribute('aria-current', 'page');
+    button.onclick = () => openPage(null, folder.id, { browse: true });
+    return button;
+  }));
+  $('folderHeading').textContent = path.at(-1)?.name ?? 'Carpetas';
+  const children = folders.filter(folder => folder.parentId === folderId).map(folder => {
+    const button = row(folder.name, 'folder');
+    button.onclick = () => openPage(null, folder.id, { browse: true });
+    return button;
+  });
+  const entries = [...children, ...pages.filter(item => item.folderId === folderId).map(item => pageRow(item))];
+  $('folderEntries').replaceChildren(...(entries.length ? entries : [note('Esta carpeta está vacía.')]));
 }
 
 function updatePageBar() {
@@ -183,16 +222,17 @@ function beginEditing() {
   updatePageBar();
 }
 
-function showPage(item, focusTitle = false) {
+function showPage(item, focusTitle = false, browse = false) {
+  browsingFolder = browse;
   clearTimeout(saveTimer);
   page = item;
   folderId = item.folderId ?? null;
   started = Boolean(item.id);
   title.value = item.title;
-  documentView.hidden = false;
+  documentView.hidden = browse;
   documentView.getAnimations().forEach(animation => animation.cancel());
   if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    documentView.animate([{ opacity: 0, transform: 'translateY(7px)' }, { opacity: 1, transform: 'translateY(0)' }],
+    (browse ? $('folderContents') : documentView).animate([{ opacity: 0, transform: 'translateY(7px)' }, { opacity: 1, transform: 'translateY(0)' }],
       { duration: 200, easing: 'ease-out' });
   }
   saveFeedback(item.id ? 'Guardado' : '');
@@ -231,7 +271,7 @@ function queueSave() {
 
 async function ensureFolder() {
   if (folderId) return folderId;
-  const defaultFolder = folders.find(item => item.name === 'Páginas');
+  const defaultFolder = folders.find(item => item.name === 'Páginas' && !item.parentId);
   if (defaultFolder) return defaultFolder.id;
   const { id } = await request('/room/folders/save', { name: 'Páginas' });
   folders.push({ id, name: 'Páginas' });
@@ -290,7 +330,7 @@ async function flushChanges() {
   return true;
 }
 
-async function openPage(id, preferredFolder = folderId, { fromHistory = false, focus = false } = {}) {
+async function openPage(id, preferredFolder = folderId, { fromHistory = false, focus = false, browse = false } = {}) {
   if (!ready || navigating) return;
   if (id && page?.id === id) {
     if (mobile.matches) setSidebar(false);
@@ -306,11 +346,11 @@ async function openPage(id, preferredFolder = folderId, { fromHistory = false, f
       return;
     }
     if (!fromHistory && page?.id && !pageIdFromUrl()) history.replaceState(null, '', roomUrl(page.id));
-    const url = roomUrl(item.id);
+    const url = browse ? roomUrl() + '?folder=' + item.folderId : roomUrl(item.id);
     if (!fromHistory && location.pathname + location.search !== url) history.pushState(null, '', url);
     setStatus();
     if (mobile.matches) setSidebar(false);
-    showPage(item, focus || !item.id);
+    showPage(item, !browse && (focus || !item.id), browse);
   } catch (error) {
     if (fromHistory) history.replaceState(null, '', roomUrl(page?.id));
     setStatus(error.message, true);
@@ -345,10 +385,11 @@ function showActions(name, actions) {
   $('actionsTitle').textContent = name;
   const list = $('actionList');
   list.replaceChildren();
-  for (const { label, danger, run } of actions) {
+  for (const { label, danger, symbol, run } of actions) {
     const button = document.createElement('button');
     button.className = 'sidebar-row' + (danger ? ' danger' : '');
-    button.textContent = label;
+    if (symbol) button.append(icon(symbol));
+    button.append(label);
     button.onclick = () => {
       actionsDialog.close();
       run();
@@ -358,9 +399,10 @@ function showActions(name, actions) {
   actionsDialog.showModal();
 }
 
-function openFolderDialog(folder = null) {
+function openFolderDialog(folder = null, parent = null) {
   editingFolder = folder;
-  $('folderDialogTitle').textContent = folder ? 'Renombrar carpeta' : 'Nueva carpeta';
+  newFolderParent = parent;
+  $('folderDialogTitle').textContent = folder ? 'Renombrar carpeta' : parent ? 'Nueva subcarpeta' : 'Nueva carpeta';
   $('folderName').value = folder?.name ?? '';
   $('folderError').hidden = true;
   folderDialog.showModal();
@@ -369,22 +411,25 @@ function openFolderDialog(folder = null) {
 
 function folderActions(folder) {
   showActions(folder.name, [
-    { label: 'Nueva página', run: () => openPage(null, folder.id, { focus: true }) },
-    { label: 'Renombrar carpeta', run: () => openFolderDialog(folder) },
-    { label: 'Borrar carpeta', danger: true, run: () => deleteFolder(folder) },
+    { label: 'Nueva página', symbol: 'plus', run: () => openPage(null, folder.id, { focus: true }) },
+    { label: 'Nueva subcarpeta', symbol: 'folder', run: () => openFolderDialog(null, folder.id) },
+    { label: 'Mover carpeta', symbol: 'move', run: () => chooseDestination(folder, true) },
+    { label: 'Renombrar carpeta', symbol: 'edit', run: () => openFolderDialog(folder) },
+    { label: 'Borrar carpeta', symbol: 'trash', danger: true, run: () => deleteFolder(folder) },
   ]);
 }
 
 async function deleteFolder(folder) {
-  if (navigating || !confirm('¿Borrar esta carpeta y todas sus páginas?')) return;
+  if (navigating || !confirm('¿Borrar esta carpeta, sus subcarpetas y todas sus páginas?')) return;
   navigating = true;
   try {
-    documentView.inert = folder.id === folderId;
+    const removed = new Set(folders.filter(item => folderPath(item.id).includes(folder)).map(item => item.id));
+    documentView.inert = removed.has(folderId);
     if (documentView.inert && !await flushChanges()) return;
     await request('/room/folders/delete', { id: folder.id });
-    folders = folders.filter(item => item.id !== folder.id);
-    pages = pages.filter(item => item.folderId !== folder.id);
-    if (folder.id === folderId) {
+    folders = folders.filter(item => !removed.has(item.id));
+    pages = pages.filter(item => !removed.has(item.folderId));
+    if (removed.has(folderId)) {
       history.replaceState(null, '', roomUrl());
       showPage({ id: null, folderId: folders[0]?.id, title: '', content: '', revision: 0 });
     } else {
@@ -399,14 +444,52 @@ async function deleteFolder(folder) {
   }
 }
 
+function chooseDestination(item, isFolder) {
+  const destinations = folders.filter(folder => isFolder
+    ? folder.id !== item.parentId && !folderPath(folder.id).some(ancestor => ancestor.id === item.id)
+    : folder.id !== item.folderId);
+  const actions = destinations.map(folder => ({
+    label: folderPath(folder.id).map(entry => entry.name).join(' / '),
+    run: () => moveItem(item, isFolder, folder.id),
+  }));
+  if (isFolder && item.parentId) actions.unshift({ label: 'Carpetas principales', run: () => moveItem(item, true, null) });
+  if (!actions.length) { setStatus('No hay otra carpeta disponible como destino.'); return; }
+  showActions('Mover ' + (isFolder ? 'carpeta' : 'página'), actions);
+}
+
+async function moveItem(item, isFolder, destination) {
+  if (navigating) return;
+  navigating = true;
+  documentView.inert = true;
+  try {
+    if (!await flushChanges()) return;
+    if (isFolder) {
+      await request('/room/folders/move', { id: item.id, parentId: destination });
+      item.parentId = destination;
+    } else {
+      await request('/room/pages/move', { id: item.id, folderId: destination });
+      pages.find(entry => entry.id === item.id).folderId = destination;
+      if (page?.id === item.id) page.folderId = folderId = destination;
+    }
+    renderSidebar();
+    setStatus(isFolder ? 'Carpeta movida.' : 'Página movida.');
+  } catch (error) {
+    setStatus(error.message, true);
+  } finally {
+    documentView.inert = false;
+    navigating = false;
+  }
+}
+
 function pageActions(item) {
   const actions = [
-    { label: 'Renombrar página', run: async () => {
+    { label: 'Renombrar página', symbol: 'edit', run: async () => {
       await openPage(item.id, item.folderId);
       if (page?.id === item.id) { title.focus(); title.select(); }
     } },
-    { label: 'Duplicar página', run: () => duplicatePage(item) },
-    { label: 'Borrar página', danger: true, run: () => confirmDeletePage(item) },
+    { label: 'Mover página', symbol: 'move', run: () => chooseDestination(item, false) },
+    { label: 'Duplicar página', symbol: 'copy', run: () => duplicatePage(item) },
+    { label: 'Borrar página', symbol: 'trash', danger: true, run: () => confirmDeletePage(item) },
   ];
   if (page?.id === item.id) actions.unshift({ label: 'Guardar ahora', run: () => saveNow() });
   showActions(item.title, actions);
@@ -490,9 +573,10 @@ async function loadRoom() {
     folders = data.folders;
     pages = data.pages;
     const requestedId = pageIdFromUrl();
+    const requestedFolder = folders.find(folder => folder.id === new URLSearchParams(location.search).get('folder'));
     let item = null;
     let missingPage = false;
-    if (requestedId || pages[0]) {
+    if (!requestedFolder && (requestedId || pages[0])) {
       try {
         item = await request('/room/pages/get', { id: requestedId || pages[0].id });
       } catch (error) {
@@ -500,11 +584,11 @@ async function loadRoom() {
         missingPage = true;
       }
     }
-    item ??= { id: null, folderId: folders[0]?.id, title: '', content: '', revision: 0 };
-    history.replaceState(null, '', roomUrl(item.id));
+    item ??= { id: null, folderId: requestedFolder?.id ?? folders[0]?.id, title: '', content: '', revision: 0 };
+    history.replaceState(null, '', requestedFolder ? roomUrl() + '?folder=' + requestedFolder.id : roomUrl(item.id));
     ready = true;
     document.querySelectorAll('[data-ready]').forEach(button => { button.disabled = false; });
-    showPage(item, !item.id && !mobile.matches);
+    showPage(item, !requestedFolder && !item.id && !mobile.matches, Boolean(requestedFolder));
     if (missingPage) setStatus('La página ya no está disponible en tu cuenta.', true);
   } catch (error) {
     if (error.status === 401) {
@@ -543,6 +627,8 @@ $('roomHome').onclick = () => {
 };
 $('newPage').onclick = $('quickPage').onclick = $('newPrivatePage').onclick = () => openPage(null, folderId, { focus: true });
 $('newFolder').onclick = () => openFolderDialog();
+$('addSubfolder').onclick = () => openFolderDialog(null, folderId);
+$('addFolderPage').onclick = () => openPage(null, folderId, { focus: true });
 $('cancelFolder').onclick = () => folderDialog.close();
 folderDialog.addEventListener('cancel', event => { if (savingFolder) event.preventDefault(); });
 $('folderForm').onsubmit = async event => {
@@ -553,13 +639,13 @@ $('folderForm').onsubmit = async event => {
   $('folderError').hidden = true;
   const name = $('folderName').value.trim();
   try {
-    const { id } = await request('/room/folders/save', { id: editingFolder?.id, name });
+    const { id } = await request('/room/folders/save', { id: editingFolder?.id, name, parentId: newFolderParent });
     if (editingFolder) editingFolder.name = name;
-    else folders.push({ id, name });
+    else folders.push({ id, name, parentId: newFolderParent });
     folders.sort((a, b) => a.name.localeCompare(b.name, 'es'));
     folderDialog.close();
     renderSidebar();
-    if (!editingFolder) await openPage(null, id, { focus: true });
+    if (!editingFolder) await openPage(null, id, { browse: true });
   } catch (error) {
     $('folderError').textContent = error.message;
     $('folderError').hidden = false;
@@ -618,7 +704,10 @@ for (const dialog of [searchDialog, actionsDialog, $('shareDialog')]) {
   dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
 }
 $('retryLoad').onclick = loadRoom;
-window.addEventListener('popstate', () => openPage(pageIdFromUrl(), folderId, { fromHistory: true }));
+window.addEventListener('popstate', () => {
+  const folder = folders.find(item => item.id === new URLSearchParams(location.search).get('folder'));
+  openPage(pageIdFromUrl(), folder?.id ?? folderId, { fromHistory: true, browse: Boolean(folder) });
+});
 window.addEventListener('resize', () => { if (ready) fitText(title); });
 window.addEventListener('beforeunload', event => {
   if (dirty() || saveTask) { event.preventDefault(); event.returnValue = ''; }
