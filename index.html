@@ -321,39 +321,67 @@ body{background:var(--site-bg)}
 .panel-loading body{background:#15191f}
 .panel-loading #panelLoading{min-height:100svh;display:grid;place-items:center;color:#c5d4e5;font-size:14px}
 .panel-sidebar{position:relative;z-index:3}
+#dashboard{
+  --organizer-blue:#91cdf3;
+  --organizer-amber:#edc687;
+  --organizer-green:#92d7bc;
+}
 .panel-organizer{position:relative;min-width:0}
 #organizerToggle{width:100%}
-#organizerToggle[data-current]{color:#fff}
-.organizer-options{
-  position:absolute;z-index:3;top:100%;left:50%;transform:translateX(-50%);
-  display:grid;width:max-content;max-width:min(270px,calc(100vw - 24px));
-  padding:5px;border:1px solid #485060;border-radius:13px;background:#222831;
-  box-shadow:0 12px 32px #0008;animation:organizer-in .18s ease-out both;
+#organizerToggle:is([data-current],[aria-expanded="true"]){color:#fff}
+#organizerToggle[aria-expanded="true"]{background:#303b46}
+#organizerToggle .organizer-chevron{
+  display:block;width:6px;height:6px;margin:0 1px 3px 2px;
+  border:solid currentColor;border-width:0 1px 1px 0;
+  transform:rotate(45deg);transition:transform .16s ease;
 }
-.organizer-options button{justify-content:flex-start;width:100%;border-radius:8px;padding:7px 11px}
-.organizer-options button[aria-current="page"]{background:#374455;color:white}
-.organizer-options [data-organizer="sessions"] span{color:#8ec9fb}
-.organizer-options [data-organizer="security"] span{color:#c4a8ff}
-.organizer-options [data-organizer="activity"] span{color:#86ddc4}
-@keyframes organizer-in{from{opacity:0;translate:0 -4px}to{opacity:1;translate:0 0}}
-.panel-nav[data-section="devices"]::before{background:#3c3558;border-color:#77649a}
+#organizerToggle[aria-expanded="true"] .organizer-chevron{transform:translateY(3px) rotate(225deg)}
+.organizer-options{
+  position:absolute;z-index:3;top:calc(100% + 6px);left:0;
+  display:grid;gap:3px;width:248px;max-width:calc(100vw - 28px);
+  padding:6px;border:1px solid #44525e;border-radius:12px;background:#202831;
+  box-shadow:0 16px 36px #080b10a6;animation:organizer-in .16s ease-out both;
+}
+.organizer-options::before{content:'';position:absolute;inset:-8px 0 100%}
+.organizer-options button{
+  justify-content:flex-start;width:100%;min-height:39px;gap:10px;
+  border-radius:7px;padding:6px 9px;color:#d5dfe8;text-align:left;font-size:12px;
+}
+.organizer-options button span{
+  display:grid;place-items:center;width:24px;height:24px;flex:none;
+  border-radius:6px;background:var(--option-bg);color:var(--option-color);
+}
+.organizer-options button:is(:hover,:focus-visible){background:#2d3944}
+.organizer-options button[aria-current="page"]{background:#2b3a44;color:#fff}
+.organizer-options button[aria-current="page"]::after{content:'✓';margin-left:auto;color:var(--option-color)}
+.organizer-options [data-organizer="sessions"]{--option-bg:#243e50;--option-color:var(--organizer-blue)}
+.organizer-options [data-organizer="security"]{--option-bg:#413523;--option-color:var(--organizer-amber)}
+.organizer-options [data-organizer="activity"]{--option-bg:#213e36;--option-color:var(--organizer-green)}
+@keyframes organizer-in{from{opacity:0;translate:0 -3px}to{opacity:1;translate:0 0}}
+.panel-nav[data-section="devices"]::before{background:#294553;border-color:#526f81}
 .panel-nav[data-section="profile"]::before{background:#264944;border-color:#57867b}
-.panel-hero{background:radial-gradient(ellipse at 20% 0%,#283d55,transparent 65%),radial-gradient(ellipse at 90% 30%,#382c49,transparent 70%),#191e27}
-.panel-hero .panel-welcome{max-width:55ch;margin:0;color:#d3dbea;line-height:1.6}
-.panel-metric:nth-child(1) .panel-pill{color:#a6d5ff}
-.panel-metric:nth-child(2) .panel-pill{color:#dbc5ff}
-.panel-metric:nth-child(3) .panel-pill{color:#a5e3cd}
+.panel-hero{
+  background:radial-gradient(ellipse at 14% 0%,#243d52,transparent 66%),
+    radial-gradient(ellipse at 95% 85%,#203c36,transparent 65%),#171e26;
+  border-color:#3b5260;
+}
+.panel-hero .panel-welcome{max-width:55ch;margin:0;color:#c9d7e2;line-height:1.65}
+.panel-metric{border-top:2px solid var(--metric-color)}
+.panel-metric .panel-pill{color:var(--metric-color)}
+.panel-metric:nth-child(1){--metric-color:var(--organizer-blue)}
+.panel-metric:nth-child(2){--metric-color:var(--organizer-amber)}
+.panel-metric:nth-child(3){--metric-color:var(--organizer-green)}
 .panel-main>section:not([hidden]),#panel-devices>.panel-group:not([hidden]){animation:appear .26s ease both}
 #panel-devices>.panel-group{margin-top:0}
 #panel-sessions .panel-section-header h2{color:#a6d5ff}
-#panel-security .panel-section-header h2{color:#dbc5ff}
+#panel-security .panel-section-header h2{color:var(--organizer-amber)}
 #panel-activity .panel-section-header h2{color:#a5e3cd}
 #dashboard #panel-devices button{
   transition:background-color .18s,border-color .18s,transform .18s;
 }
 #dashboard #panel-devices button:not(:disabled):active{transform:translateY(1px)}
 #dashboard :is(#refreshDevices,#enableAccess){background:#20364b;color:#c0e1ff;border-color:#426382}
-#dashboard :is(#configureFace,.action-edit){background:#302644;color:#e2ceff;border-color:#654f85}
+#dashboard :is(#configureFace,.action-edit){background:#3a3021;color:#f5d8a9;border-color:#775f39}
 #dashboard :is(#addPasskey,#refreshActivity){background:#244638;color:#bbefdb;border-color:#4d806b}
 #dashboard :is(.action-danger,#deleteFace){background:#40282e;color:#ffccd3;border-color:#814b57}
 #dashboard #panel-devices button:not(:disabled):hover{filter:brightness(1.16)}
@@ -361,7 +389,7 @@ body{background:var(--site-bg)}
 .home-copy p{max-width:45ch}
 .home-intro{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:0 0 52px}
 .home-intro article{padding:20px;border-radius:15px;border:1px solid #58697966;background:#8db5e710}
-.home-intro article:nth-child(2){background:#ae8de710}
+.home-intro article:nth-child(2){background:#e7b46d15}
 .home-intro article:nth-child(3){background:#8de7b410}
 .home-intro span{color:var(--site-accent);font-size:23px}
 .home-intro h2{font:700 18px var(--font-heading);margin:8px 0}
@@ -369,8 +397,9 @@ body{background:var(--site-bg)}
 @media(max-width:720px){
   .home-copy h1{margin-inline:auto}
   .home-intro{grid-template-columns:1fr}
-  .organizer-options button{font-size:12px}
-  .organizer-options button span{display:inline}
+  .panel-organizer{position:static}
+  .organizer-options{left:4px;right:4px;width:auto;max-width:none}
+  .organizer-options button span{display:grid}
 }
 </style><script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script></head><body>
@@ -446,7 +475,7 @@ body{background:var(--site-bg)}
     <nav class="panel-nav" aria-label="Secciones de la cuenta">
       <button type="button" data-panel="overview" aria-pressed="true"><span aria-hidden="true">⌂</span>Inicio</button>
       <div class="panel-organizer" id="organizer">
-        <button type="button" id="organizerToggle" data-panel="devices" aria-expanded="false" aria-controls="organizerOptions"><span aria-hidden="true">▤</span>Organizador</button>
+        <button type="button" id="organizerToggle" data-panel="devices" aria-expanded="false" aria-controls="organizerOptions"><span aria-hidden="true">▤</span>Organizador<span class="organizer-chevron" aria-hidden="true"></span></button>
         <div class="organizer-options" id="organizerOptions" hidden>
           <button type="button" data-organizer="sessions" aria-controls="panel-sessions"><span aria-hidden="true">▤</span>Sesiones abiertas</button>
           <button type="button" data-organizer="security" aria-controls="panel-security"><span aria-hidden="true">◇</span>Seguridad</button>
@@ -835,7 +864,9 @@ const organizer=$('organizer');
 const organizerToggle=$('organizerToggle');
 const organizerOptions=$('organizerOptions');
 const organizerButtons=[...organizerOptions.querySelectorAll('[data-organizer]')];
+let organizerCloseTimer;
 function setOrganizer(open){
+  clearTimeout(organizerCloseTimer);
   organizerOptions.hidden=!open;
   organizerToggle.setAttribute('aria-expanded',String(open));
 }
@@ -870,7 +901,10 @@ for(const button of panelButtons){
 }
 organizer.addEventListener('pointerenter',event=>{if(event.pointerType==='mouse')setOrganizer(true)});
 organizer.addEventListener('pointerleave',event=>{
-  if(event.pointerType==='mouse'&&!organizerOptions.contains(document.activeElement))setOrganizer(false);
+  if(event.pointerType==='mouse'&&!organizerOptions.contains(document.activeElement)){
+    clearTimeout(organizerCloseTimer);
+    organizerCloseTimer=setTimeout(()=>setOrganizer(false),160);
+  }
 });
 organizerToggle.onclick=event=>{
   if(event.pointerType==='mouse')setOrganizer(true);
