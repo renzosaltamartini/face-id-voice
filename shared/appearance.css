@@ -362,3 +362,10 @@
 .panel-main > section:not([hidden]), #panel-devices > .panel-group:not([hidden]) {
   animation: renx-enter .24s cubic-bezier(.2,.75,.25,1) both;
 }
+
+#home .home-nav-access {
+  min-height: 36px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+}

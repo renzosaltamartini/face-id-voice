@@ -463,8 +463,6 @@ body{background:var(--site-bg)}
 <section class="screen" id="verify" hidden><div class="verify-shell"><button class="back" id="backButton">← &nbsp; Volver</button><div class="verify-header"><h1>Verificá tu identidad</h1></div><div class="device-choice" id="deviceChoice" hidden>
   <p id="devicePrompt">Elegí cómo continuar.</p>
   <button class="primary" id="verifyHere" type="button">Iniciar sesión</button>
-  <button class="secondary" id="verifyThisDevice" type="button" hidden>Ingresar con este dispositivo</button>
-  <button class="secondary" id="recognizeFace" type="button">Ingresar con rostro</button>
   <label class="remember-device"><input id="rememberDevice" type="checkbox"> Recordar este dispositivo</label>
   <button class="secondary" id="verifyPhone" type="button">Registrarme</button>
 </div>
@@ -769,40 +767,6 @@ function saveRegistrationFace(request){
     return true;
   }catch{return false}
 }
-async function runFaceRecognition(registration=false){
-  if(faceOperation)return;
-  const faces=savedFaces();
-  if(!faces.length){
-    if(registration)await begin('registration');
-    else notify('Todavía no hay un rostro guardado en este navegador. Entrá con tu clave y configuralo en Seguridad.');
-    return;
-  }
-  const operation={};
-  faceOperation=operation;
-  showScreen('verify');
-  showVerificationMode('face');
-  $('faceRecognitionTitle').textContent='Reconocé tu rostro';
-  $('faceRecognitionInstructions').textContent='Mirá a la cámara. La comparación se hace en este navegador.';
-  try{
-    const result=await captureFace(operation);
-    if(!result||faceOperation!==operation)return;
-    const id=bestFaceMatch(result.model,result.samples,faces);
-    stopFaceRecognition();
-    if(!id){
-      showChoices();
-      if(registration){await begin('registration');return}
-      notify('No encontramos una coincidencia. Podés ingresar con tu clave de acceso.');
-      return;
-    }
-    await begin('sign-in',true,id);
-  }catch(error){
-    if(faceOperation!==operation)return;
-    stopFaceRecognition();
-    showChoices();
-    notify(error.message);
-  }
-}
-$('recognizeFace').onclick=()=>runFaceRecognition();
 $('configureFace').onclick=async()=>{
   if(faceOperation||!sessionToken)return;
   const operation={},token=sessionToken;
@@ -1210,7 +1174,6 @@ function notify(message=''){
 }
 function showVerificationMode(mode){
   $('deviceChoice').hidden=mode!=='choice';
-  $('verifyThisDevice').hidden=isPhone;
   $('qrFallback').hidden=mode!=='qr';
   $('phoneApproval').hidden=mode!=='approval';
   $('scannerCard').hidden=mode!=='scanner';
@@ -1282,17 +1245,16 @@ async function waitForPhone(request){
     }
   }
 }
-async function begin(purpose,onThisDevice=isPhone,credentialId=null){
-  $('verifyHere').disabled=$('verifyPhone').disabled=$('verifyThisDevice').disabled=$('recognizeFace').disabled=true;
+async function begin(purpose){
+  $('verifyHere').disabled=$('verifyPhone').disabled=true;
   notify();
   try{
     const request={...await api('/new',{purpose}),purpose};
     if($('verify').hidden)return;
     desktopRequest=request;
-    if(onThisDevice){
-      phoneRequest={id:request.id,token:request.phone,purpose,credentialId};
-      if(purpose==='registration')startFace();
-      else if(credentialId)showApproval('Rostro reconocido','Confirmá con la clave vinculada a este rostro.','Confirmar ingreso',approvePhone);
+    if(isPhone){
+      phoneRequest={id:request.id,token:request.phone,purpose};
+      if(purpose==='registration'||savedFaces().length)startFace();
       else showApproval('Iniciá sesión','Usá el reconocimiento facial, la huella o el PIN de este dispositivo para abrir tu cuenta de Renx.','Continuar en este dispositivo',approvePhone);
       return;
     }
@@ -1304,7 +1266,7 @@ async function begin(purpose,onThisDevice=isPhone,credentialId=null){
     $('qrImage').src=request.image;
     waitForPhone(request);
   }catch(error){notify(error.message)}
-  finally{$('verifyHere').disabled=$('verifyPhone').disabled=$('verifyThisDevice').disabled=$('recognizeFace').disabled=false}
+  finally{$('verifyHere').disabled=$('verifyPhone').disabled=false}
 }
 function startFace(){
   showVerificationMode('camera');
@@ -1313,7 +1275,9 @@ function startFace(){
   lastSpoken='';
   neutralPitch=null;
   setStep(0,'Preparando cámara…');
-  notify('Durante el registro guardaremos una referencia facial en este navegador.');
+  notify(phoneRequest?.purpose==='registration'
+    ?'Durante el registro guardaremos una referencia facial en este navegador.'
+    :'Seguí los movimientos para buscar tu cuenta con el rostro.');
   startCamera();
 }
 async function approvePhone(){
@@ -1428,14 +1392,13 @@ $('loginButton').onclick=$('navLoginButton').onclick=()=>{
   showChoices();
 };
 $('verifyHere').onclick=()=>begin('sign-in');
-$('verifyThisDevice').onclick=()=>begin('sign-in',true);
 
 $('existingAccount').onclick=()=>{
   cancelRequest();
   showChoices();
   begin('sign-in');
 };
-$('verifyPhone').onclick=()=>isPhone&&savedFaces().length?runFaceRecognition(true):begin('registration');
+$('verifyPhone').onclick=()=>begin('registration');
 $('enableAccess').onclick=scanFromPanel;
 $('backToDevice').onclick=()=>{cancelRequest();showChoices()};
 $('cancelRegistration').onclick=()=>{cancelRequest();showScreen('home')};
@@ -1540,21 +1503,26 @@ async function flow(){
     if(phoneRequest!==current)return;
     setStep(5,'Verificación completada','');
     $('phaseLabel').textContent='Volvé a mirar al frente';
-    notify('Estamos preparando tu referencia facial para este navegador.');
-    try{
-      await wait(650);
-      if(phoneRequest!==current)return;
-      const captured=await collectFaceSamples(video,()=>phoneRequest===current);
-      if(captured)current.faceSamples=captured.samples;
-    }catch{
-      current.faceSamples=null;
-    }
+    notify(current.purpose==='registration'?'Preparando tu referencia facial…':'Comparando tu rostro con las referencias guardadas…');
+    await wait(650);
     if(phoneRequest!==current)return;
+    const captured=await collectFaceSamples(video,()=>phoneRequest===current);
+    if(phoneRequest!==current||!captured)return;
+    if(current.purpose==='registration'){
+      current.faceSamples=captured.samples;
+    }else{
+      current.credentialId=bestFaceMatch(captured.model,captured.samples,savedFaces());
+      if(!current.credentialId)throw Error('El rostro no coincide con una referencia guardada. Volvé a intentar.');
+    }
     currentStream?.getTracks().forEach(track=>track.stop());
     stream=null;
     landmarker=null;
     $('confirmPhone').hidden=false;
-    showApproval('Guardá tu clave de acceso','Usá Face ID, huella o el PIN de tu celular para proteger tu cuenta.','Crear clave de acceso',approvePhone);
+    if(current.purpose==='registration'){
+      showApproval('Guardá tu clave de acceso','Usá Face ID, huella o el PIN de tu celular para proteger tu cuenta.','Crear clave de acceso',approvePhone);
+    }else{
+      showApproval('Rostro reconocido','Confirmá el ingreso con la clave vinculada a este rostro.','Confirmar ingreso',approvePhone);
+    }
   }catch(error){
     if(phoneRequest!==current)return;
     $('camera').classList.remove('good');
