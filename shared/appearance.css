@@ -12,8 +12,8 @@
   --app-danger-bg: #fbedee;
   --app-shadow: 0 8px 24px #17181416;
   --room-text: #174c83;
-  --room-bg: #eef6ff;
-  --room-border: #b6d5f6;
+  --room-bg: #c7e0fb;
+  --room-border: #91bdeb;
   --live-text: #216344;
   --live-bg: #eaf7ef;
   --live-border: #bce2ca;
@@ -52,7 +52,7 @@
   box-shadow: 0 0 12px #64a5ef48; transition: background .18s ease, box-shadow .18s ease;
 }
 #dashboard .panel-nav .room-nav:hover {
-  background: #e1efff; box-shadow: 0 0 16px #64a5ef65;
+  background: #b5d6f9; box-shadow: 0 0 16px #64a5ef65;
 }
 #dashboard .panel-nav .room-nav span { color: inherit; }
 .panel-nav :is(button,a):hover,
@@ -64,7 +64,7 @@
 }
 .organizer-options { box-shadow: var(--app-shadow); }
 .panel-nav .organizer-options button {
-  color: var(--app-text); font-weight: 650;
+  color: var(--app-text); font-weight: 500;
 }
 .panel-nav .organizer-options button:is(:hover,:focus-visible) {
   color: var(--app-text); background: var(--app-subtle);
@@ -162,3 +162,8 @@
 }
 #dashboard #configureFace { background: var(--app-subtle); }
 #dashboard #configureFace:hover { background: var(--app-hover); }
+
+:is(#home,#dashboard) :is(h1,h2,h3,.logo,.panel-metric strong) { font-weight: 600; }
+#dashboard :is(.panel-nav button,.panel-nav a,.primary,.secondary,.panel-pill,.device-list strong) {
+  font-weight: 500;
+}
