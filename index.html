@@ -704,11 +704,73 @@ profileForm.addEventListener('submit',async event=>{
   }
 });
 async function loadVision(){if(window.vision?.FaceLandmarker)return;const urls=['https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.2/vision_bundle.mjs','https://unpkg.com/@mediapipe/tasks-vision@1.2.2/vision_bundle.mjs'];let errors=[];for(const url of urls){try{const mod=await import(url);if(mod.FaceLandmarker&&mod.FilesetResolver){window.vision=mod;window.visionWasmBase=url.includes('jsdelivr')?'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.2/wasm':'https://unpkg.com/@mediapipe/tasks-vision@1.2.2/wasm';return}throw Error('Módulo sin FaceLandmarker')}catch(e){errors.push(e.message)}}throw Error('No se pudo importar el módulo oficial de MediaPipe: '+errors.join('; '))}
-async function startCamera(){if(starting||landmarker)return;starting=true;const current=phoneRequest;const btn=$('start');btn.disabled=true;try{status('Solicitando acceso a la cámara…');if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia)throw Error('Abrí la web directamente en Safari mediante HTTPS, no dentro de otra aplicación.');const media=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});if(phoneRequest!==current){media.getTracks().forEach(track=>track.stop());return}stream=media;video.srcObject=stream;video.setAttribute('playsinline','');video.muted=true;if('speechSynthesis' in window){speechSynthesis.getVoices();}await video.play();if(!video.videoWidth){await new Promise(resolve=>{const timer=setTimeout(resolve,1800);video.addEventListener('loadedmetadata',()=>{clearTimeout(timer);resolve()},{once:true})})}status('Cámara activada. Cargando reconocimiento facial…');btn.hidden=true;try{await loadVision();const {FaceLandmarker,FilesetResolver}=window.vision;const vision=await FilesetResolver.forVisionTasks(window.visionWasmBase);const model=await FaceLandmarker.createFromOptions(vision,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',delegate:'CPU'},runningMode:'VIDEO',numFaces:1,outputFaceBlendshapes:true});if(phoneRequest!==current){model.close();return}landmarker=model;$('enroll').disabled=false;$('verifyAction').disabled=false;status('Ubicá tu rostro dentro del óvalo.');requestAnimationFrame(tick);setTimeout(()=>{if(!working&&phoneRequest&&!$('verify').hidden)flow()},1200)}catch(err){notify('No se pudo cargar el reconocimiento facial. Revisá la conexión y volvé a abrir la verificación.')}}catch(err){btn.disabled=false;btn.hidden=false;btn.textContent='Continuar con cámara';if(err.name==='NotFoundError'||err.name==='DevicesNotFoundError'){notify('No se encontró una cámara en este dispositivo.');return}const msg=err.name==='NotAllowedError'?'Permiso de cámara denegado. Habilitalo en Safari.':err.name==='NotFoundError'?'No se encontró una cámara.':err.message;notify('No se pudo activar la cámara: '+msg)}finally{starting=false}};
+async function startCamera(){
+  if(starting||landmarker||!phoneRequest)return;
+  starting=true;
+  const current=phoneRequest;
+  const button=$('start');
+  let media;
+  button.disabled=true;
+  button.textContent='Abriendo cámara…';
+  notify('Dale permiso a Renx para usar la cámara.');
+  try{
+    if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){
+      throw Error('Abrí Renx directamente en el navegador para usar la cámara.');
+    }
+    media=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'user'}},audio:false});
+    if(phoneRequest!==current){media.getTracks().forEach(track=>track.stop());return}
+    stream=media;
+    video.srcObject=media;
+    video.setAttribute('playsinline','');
+    video.muted=true;
+    $('camera').hidden=false;
+    $('phaseCard').hidden=false;
+    $('verificationProgress').hidden=false;
+    await video.play();
+    if(phoneRequest!==current)return;
+    notify('Cargando la verificación facial…');
+    button.textContent='Preparando verificación…';
+    await loadVision();
+    if(phoneRequest!==current)return;
+    const {FaceLandmarker,FilesetResolver}=window.vision;
+    const vision=await FilesetResolver.forVisionTasks(window.visionWasmBase);
+    if(phoneRequest!==current)return;
+    const model=await FaceLandmarker.createFromOptions(vision,{
+      baseOptions:{
+        modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+        delegate:'CPU'
+      },
+      runningMode:'VIDEO',numFaces:1,outputFaceBlendshapes:true
+    });
+    if(phoneRequest!==current){model.close();return}
+    landmarker=model;
+    button.hidden=true;
+    notify('Ubicá tu rostro dentro del óvalo.');
+    requestAnimationFrame(tick);
+    setTimeout(()=>{if(phoneRequest===current&&!$('verify').hidden)flow()},1200);
+  }catch(error){
+    media?.getTracks().forEach(track=>track.stop());
+    if(phoneRequest!==current)return;
+    if(stream===media)stream=null;
+    video.srcObject=null;
+    $('camera').hidden=true;
+    $('phaseCard').hidden=true;
+    $('verificationProgress').hidden=true;
+    button.hidden=false;
+    button.textContent='Reintentar cámara';
+    const message=error.name==='NotAllowedError'?'Permití el acceso a la cámara en tu navegador y volvé a intentar.'
+      :error.name==='NotFoundError'?'No se encontró una cámara en este dispositivo.'
+      :error.message||'No se pudo iniciar la verificación facial.';
+    notify(message);
+  }finally{
+    starting=false;
+    if(phoneRequest===current)button.disabled=false;
+  }
+}
 
 
 const ua=navigator.userAgent;
-const isPhone=/iPhone|iPod|Windows Phone/i.test(ua)||(/Android/i.test(ua)&&/Mobile/i.test(ua));
+const isPhone=/iPhone|iPad|iPod|Windows Phone/i.test(ua)||(/Android/i.test(ua)&&/Mobile/i.test(ua))||(/Macintosh/i.test(ua)&&navigator.maxTouchPoints>1);
 let desktopRequest=null,phoneRequest=null,scannerStream=null,pollTimer=null;
 let faceOperation=null,faceStream=null,humanModel=null,accountCredentials=new Set();
 const faceStorageKey='nova-face-references-v1';
@@ -1328,9 +1390,12 @@ async function waitForPhone(request){
 }
 async function begin(purpose){
   $('verifyHere').disabled=$('verifyPhone').disabled=true;
-  notify();
+  notify(purpose==='registration'?'Preparando el registro…':'Preparando el ingreso…');
   try{
     const request={...await api('/new',{purpose}),purpose};
+    if(!request.id||!request.desktop||!request.phone||(!isPhone&&!request.image)){
+      throw Error('No se pudo preparar el acceso. Volvé a intentar.');
+    }
     if($('verify').hidden)return;
     desktopRequest=request;
     if(isPhone){
@@ -1359,7 +1424,13 @@ function startFace(){
   notify(phoneRequest?.purpose==='registration'
     ?'Durante el registro guardaremos una referencia facial en este navegador.'
     :'Seguí los movimientos para buscar tu cuenta con el rostro.');
-  startCamera();
+  $('camera').hidden=true;
+  $('phaseCard').hidden=true;
+  $('verificationProgress').hidden=true;
+  const button=$('start');
+  button.hidden=false;
+  button.disabled=false;
+  button.textContent='Activar cámara';
 }
 function showPasswordLogin(face){
   showVerificationMode('approval');
@@ -1675,6 +1746,7 @@ async function flow(){
     landmarker=null;
     $('confirmPhone').hidden=false;
     if(current.purpose==='registration'){
+      notify('Abriendo el formulario de registro…');
       await completeFaceRegistration(current);
     }else{
       const face=savedFaces().find(item=>item.id===current.credentialId);
