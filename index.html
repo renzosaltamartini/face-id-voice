@@ -406,21 +406,54 @@ body{background:var(--site-bg)}
 <div id="panelLoading" role="status">Abriendo tu panel…</div>
 <section class="screen" id="home" hidden>
   <div class="shell">
-    <nav class="nav" aria-label="Renx"><div class="logo"><span class="logo-mark">✦</span>renx.</div></nav>
-    <main class="home-main">
-      <div class="home-copy">
-        <h1>Tu cuenta y tus ideas, <span>en Renx.</span></h1>
-        <p>Renx reúne el acceso a tu cuenta, el control de tus dispositivos y tus páginas privadas en un solo lugar.</p>
-        <button class="primary" id="loginButton" type="button">Ingresar o registrarme <span aria-hidden="true">→</span></button>
-        <p class="nova-message" id="homeStatus" role="status" hidden></p>
-
+    <nav class="nav" aria-label="Renx">
+      <a class="logo" href="/face-id-voice/"><span class="logo-mark" aria-hidden="true">✦</span>renx.</a>
+      <div class="home-nav-links"><a href="#vista-room">Room</a><a href="#funciones-renx">Funciones</a></div>
+      <button class="primary home-nav-access" id="navLoginButton" type="button">Abrir Renx</button>
+    </nav>
+    <main>
+      <div class="home-main">
+        <div class="home-copy">
+          <h1>Un lugar para tus ideas.<br><span class="home-highlight">Un espacio para vos.</span></h1>
+          <p>Escribí y organizá tus páginas privadas en Room. Administrá tus dispositivos y formas de ingreso desde Renx.</p>
+          <div class="home-actions">
+            <button class="primary" id="loginButton" type="button">Ingresar o registrarme</button>
+            <a class="home-secondary" href="#vista-room">Conocer Room <span aria-hidden="true">↓</span></a>
+          </div>
+          <p class="nova-message" id="homeStatus" role="status" hidden></p>
+        </div>
       </div>
+      <figure class="home-preview" id="vista-room" aria-labelledby="room-preview-caption">
+        <div class="home-preview-window" aria-hidden="true">
+          <div class="home-preview-bar"><span class="preview-dots"><i></i><i></i><i></i></span><span>Room</span></div>
+          <div class="home-preview-body">
+            <aside class="home-preview-sidebar">
+              <strong>Room</strong>
+              <span>⌕ &nbsp; Buscar páginas</span>
+              <small>Carpetas</small>
+              <span>▱ &nbsp; Personal</span>
+              <span class="preview-selected">▤ &nbsp; Mi semana</span>
+              <span>▱ &nbsp; Proyectos</span>
+            </aside>
+            <div class="home-preview-page">
+              <div class="preview-path">Personal <span>/</span> Mi semana</div>
+              <div class="preview-title">Mi semana</div>
+              <p>Ideas y tareas para los próximos días.</p>
+              <ul>
+                <li><span class="preview-check done">✓</span> Anotar ideas para el proyecto</li>
+                <li><span class="preview-check"></span> Revisar prioridades de la semana</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <figcaption id="room-preview-caption">Vista previa de Room con una página de ejemplo</figcaption>
+      </figure>
+      <section class="home-intro" id="funciones-renx" aria-label="Qué podés hacer en Renx">
+        <article><h2>Ingresá con tu dispositivo</h2><p>Usá una clave de acceso o escaneá un QR desde tu celular para iniciar sesión.</p></article>
+        <article><h2>Administrá tus sesiones</h2><p>Revisá dónde está abierta tu cuenta, cerrá sesiones y consultá la actividad reciente.</p></article>
+        <article><h2>Organizá tus ideas en Room</h2><p>Escribí en páginas privadas y ordenalas en carpetas y subcarpetas.</p></article>
+      </section>
     </main>
-    <section class="home-intro" aria-label="Qué podés hacer en Renx">
-      <article><span aria-hidden="true">⌁</span><h2>Ingresá con tu dispositivo</h2><p>Usá una clave de acceso o escaneá un QR desde tu celular para iniciar sesión.</p></article>
-      <article><span aria-hidden="true">▤</span><h2>Administrá tus sesiones</h2><p>Revisá dónde está abierta tu cuenta, cerrá sesiones y consultá la actividad reciente.</p></article>
-      <article><span aria-hidden="true">✧</span><h2>Organizá tus ideas en Room</h2><p>Escribí en páginas privadas y ordenalas en carpetas y subcarpetas.</p></article>
-    </section>
   </div>
 </section>
 <section class="screen" id="verify" hidden><div class="verify-shell"><button class="back" id="backButton">← &nbsp; Volver</button><div class="verify-header"><h1>Verificá tu identidad</h1></div><div class="device-choice" id="deviceChoice" hidden>
@@ -1382,7 +1415,7 @@ function cancelRequest(){
   landmarker=null;
   lastResult=null;
 }
-$('loginButton').onclick=showChoices;
+$('loginButton').onclick=$('navLoginButton').onclick=showChoices;
 $('verifyHere').onclick=()=>begin('sign-in');
 $('verifyThisDevice').onclick=()=>begin('sign-in',true);
 
