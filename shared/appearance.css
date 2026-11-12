@@ -378,3 +378,12 @@
   border-radius: 7px;
   font-size: 12px;
 }
+
+#dashboard .ceo-pill {
+  background: #fbedee; color: #962d36; border-color: #e9b7bc;
+  margin-top: 9px; gap: 5px;
+}
+.ceo-overview { margin-bottom: 16px; }
+.ceo-overview dl { display: flex; flex-wrap: wrap; gap: 14px 32px; margin: 12px 0 0; }
+.ceo-overview dt { color: var(--app-muted); font-size: 12px; }
+.ceo-overview dd { margin: 4px 0 0; font-size: 15px; }

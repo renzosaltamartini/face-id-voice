@@ -120,11 +120,17 @@ export default {
           return json({});
         }
         const account = await query(`SELECT a.id, a.given_name AS name, a.family_name AS surname, a.email,
-          a.age, a.sex, a.nationality AS country, a.province, a.locality AS city, a.created_at AS createdAt,
+          a.email_verified_at AS emailVerifiedAt, a.age, a.sex, a.nationality AS country, a.province, a.locality AS city, a.created_at AS createdAt,
           (SELECT COUNT(*) FROM sessions active WHERE active.account_id = a.id AND active.expires_at > ?) AS sessionCount,
           (SELECT COUNT(*) FROM passkeys p WHERE p.account_id = a.id AND p.rp_id = ?) AS passkeyCount
           FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`, now, rpID, key, now).first();
         if (!account) return fail(401, 'Volvé a iniciar sesión.');
+        if (route === '/me' && account.emailVerifiedAt && account.email.toLowerCase() === 'renzosaltamartini2008@gmail.com') {
+          account.ceo = await query(`SELECT
+            (SELECT COUNT(*) FROM accounts) AS accounts,
+            (SELECT MAX(created_at) FROM account_events WHERE account_id = ? AND type IN ('signed_in','account_created')) AS lastSignIn`,
+            account.id).first();
+        }
         if (route === '/account/delete/options') {
           const { results } = await query('SELECT id FROM passkeys WHERE account_id = ? AND rp_id = ?', account.id, rpID).all();
           if (!results.length) return fail(409, 'Agregá una clave de acceso para confirmar el borrado.');

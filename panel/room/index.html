@@ -174,13 +174,9 @@
   </dialog>
   <main class="shared-page" id="sharedPage" hidden>
     <p id="sharedMode"></p>
-    <form id="sharedForm" hidden>
-      <label for="sharedTitle">Título</label>
-      <input id="sharedTitle" maxlength="120" required>
-      <label for="sharedContent">Contenido</label>
-      <textarea id="sharedContent" maxlength="10000" rows="14"></textarea>
-      <button class="bar-button shared-save" id="sharedSave" type="submit">Guardar cambios</button>
-    </form>
+    <div id="sharedToolbar" class="shared-toolbar" hidden>
+      <button class="bar-button shared-save" id="sharedSave" type="button">Guardar cambios</button>
+    </div>
     <article id="sharedRead" hidden><h1 id="sharedHeading"></h1><div id="sharedBlocks"></div></article>
     <p id="sharedStatus" role="status"></p>
   </main>

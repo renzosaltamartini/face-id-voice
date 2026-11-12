@@ -907,34 +907,43 @@ async function openSharedPage(share) {
     document.title = data.title + ' · Room';
     status.textContent = '';
     if (data.permission === 'edit') {
-      const form = $('sharedForm');
-      const sharedTitle = $('sharedTitle');
-      const content = $('sharedContent');
-      sharedTitle.value = data.title;
-      content.value = data.content;
+      const saveButton = $('sharedSave');
       $('sharedMode').textContent = 'Room · Podés editar';
-      form.hidden = false;
-      let saved = [sharedTitle.value, content.value];
+      $('sharedToolbar').hidden = false;
+      status.before(documentView);
+      documentView.hidden = false;
+      title.value = data.title;
+      editor.setContent(data.content);
+      fitText(title);
+      editor.fit();
+      let saved = snapshot();
       window.addEventListener('beforeunload', event => {
-        if (sharedTitle.value !== saved[0] || content.value !== saved[1]) event.preventDefault();
+        const draft = snapshot();
+        if (draft.title !== saved.title || draft.content !== saved.content) event.preventDefault();
       });
-      form.onsubmit = async event => {
-        event.preventDefault();
-        if ($('sharedSave').disabled) return;
-        const draft = [sharedTitle.value, content.value];
-        $('sharedSave').disabled = true;
+      async function saveShared() {
+        if (saveButton.disabled) return;
+        const draft = snapshot();
+        saveButton.disabled = true;
         status.textContent = 'Guardando…';
         try {
-          const result = await api('/room/shared/save', { share, revision: data.revision, title: draft[0], content: draft[1] });
+          const result = await api('/room/shared/save', { share, revision: data.revision, ...draft });
           data.revision = result.revision;
           saved = draft;
           status.textContent = 'Cambios guardados.';
         } catch (error) {
           status.textContent = error.message;
         } finally {
-          $('sharedSave').disabled = false;
+          saveButton.disabled = false;
         }
-      };
+      }
+      saveButton.onclick = saveShared;
+      document.addEventListener('keydown', event => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+          event.preventDefault();
+          saveShared();
+        }
+      });
     } else {
       $('sharedMode').textContent = 'Room · Solo lectura';
       $('sharedHeading').textContent = data.title;

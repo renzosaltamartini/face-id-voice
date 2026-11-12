@@ -461,7 +461,6 @@ body{background:var(--site-bg)}
   </div>
 </section>
 <section class="screen" id="verify" hidden><div class="verify-shell"><button class="back" id="backButton">← &nbsp; Volver</button><div class="verify-header"><h1>Verificá tu identidad</h1></div><div class="device-choice" id="deviceChoice" hidden>
-  <p id="devicePrompt">Elegí cómo continuar.</p>
   <button class="primary" id="verifyHere" type="button">Iniciar sesión</button>
   <button class="secondary" id="verifyPhone" type="button">Registrarme</button>
 </div>
@@ -526,8 +525,16 @@ body{background:var(--site-bg)}
     <section id="panel-overview">
       <div class="panel-hero">
         <span class="panel-pill" data-tone="live">Sesión activa</span>
+        <span class="panel-pill ceo-pill" id="ceoBadge" hidden><span aria-hidden="true">♛</span> CEO</span>
         <h2>Hola, <span id="panelName"></span></h2><p id="panelEmail"></p>
       </div>
+      <section class="panel-card ceo-overview" id="ceoOverview" aria-labelledby="ceoHeading" hidden>
+        <h3 id="ceoHeading">Resumen de Renx</h3>
+        <dl>
+          <div><dt>Cuentas registradas</dt><dd id="ceoAccounts"></dd></div>
+          <div><dt>Tu último ingreso</dt><dd id="ceoLastSignIn"></dd></div>
+        </dl>
+      </section>
       <div class="panel-metrics">
         <div class="panel-metric"><span class="panel-pill"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>Sesiones activas</span><strong id="sessionCount">—</strong></div>
         <div class="panel-metric"><span class="panel-pill"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m11 12 8-8m-3 3 3 3m-5-1 3 3"/></svg>Claves de acceso</span><strong id="passkeyCount">—</strong></div>
@@ -756,6 +763,20 @@ function bestFaceMatch(model,samples,faces){
   const [best,next]=candidates;
   return best&&best.score>=.65&&(!next||best.score-next.score>=.08)?best.id:null;
 }
+function faceAccountSummary(account){
+  const [local,domain]=(account?.email||'').split('@');
+  return {
+    accountName:account ? [account.name,account.surname].filter(Boolean).join(' ') : undefined,
+    emailHint:local&&domain ? local.slice(0,1)+'•••@'+domain : undefined
+  };
+}
+function rememberFaceAccount(credentialId,account){
+  const faces=savedFaces();
+  const matched=faces.find(face=>face.id===credentialId);
+  if(!matched)return;
+  Object.assign(matched,faceAccountSummary(account));
+  try{localStorage.setItem(faceStorageKey,JSON.stringify(faces))}catch{}
+}
 function saveRegistrationFace(request,account){
   if(!request?.faceSamples||!request.registeredCredential)return false;
   try{
@@ -763,8 +784,7 @@ function saveRegistrationFace(request,account){
     const faces=savedFaces().filter(face=>face.id!==id);
     localStorage.setItem(faceStorageKey,JSON.stringify([{
       id,samples:request.faceSamples,
-      accountName:account ? [account.name,account.surname].filter(Boolean).join(' ') : undefined,
-      emailHint:account?.email ? account.email.split('@')[0].slice(0,1)+'•••@'+account.email.split('@')[1] : undefined
+      ...faceAccountSummary(account)
     },...faces].slice(0,8)));
     request.faceSamples=null;
     updateFaceButtons();
@@ -934,6 +954,13 @@ for(const option of organizerButtons)option.onclick=()=>{
 };
 function renderAccount(account){
   panelAccount=account;
+  $('ceoBadge').hidden=$('ceoOverview').hidden=!account.ceo;
+  if(account.ceo){
+    $('ceoAccounts').textContent=account.ceo.accounts;
+    $('ceoLastSignIn').textContent=account.ceo.lastSignIn
+      ?new Intl.DateTimeFormat('es-AR',{dateStyle:'medium',timeStyle:'short'}).format(account.ceo.lastSignIn)
+      :'Sin actividad registrada';
+  }
   $('panelEmail').textContent=account.email;
   $('panelName').textContent=account.name;
   $('panelInitial').textContent=account.name.charAt(0).toUpperCase();
@@ -1300,7 +1327,11 @@ async function approvePhone(){
   if(purpose==='registration')request.registeredCredential=response.id;
   if(desktopRequest?.id===id){
     if(purpose==='registration')openProfile();
-    else finishSignIn(await api('/finish',{id,token:desktopRequest.desktop}));
+    else {
+      const signedIn=await api('/finish',{id,token:desktopRequest.desktop});
+      rememberFaceAccount(response.id,signedIn.account);
+      finishSignIn(signedIn);
+    }
     return;
   }
   const saved=purpose==='registration'&&saveRegistrationFace(request);
@@ -1526,7 +1557,7 @@ async function flow(){
       showApproval('Guardá tu clave de acceso','Usá Face ID, huella o el PIN de tu celular para proteger tu cuenta.','Crear clave de acceso',approvePhone);
     }else{
       const face=savedFaces().find(item=>item.id===current.credentialId);
-      showApproval(face?.accountName||'¿Es tu cuenta?',face?.emailHint||'', 'Sí, es mi cuenta',approvePhone);
+      showApproval(face?.accountName||'¿Es tu cuenta?',face?.emailHint||'Los datos de esta cuenta se mostrarán acá después de confirmar el ingreso una vez.', 'Sí, es mi cuenta',approvePhone);
       const retry=$('retryFaceAccount');
       retry.hidden=false;
       retry.onclick=()=>{

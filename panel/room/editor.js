@@ -67,9 +67,9 @@ class BlockEditor {
         this.closePicker();
       }
     });
-    $('main').addEventListener('scroll', () => {
+    document.addEventListener('scroll', () => {
       if (this.target) this.placePicker();
-    });
+    }, true);
     window.addEventListener('resize', () => {
       this.fit();
       if (this.target) this.placePicker();
