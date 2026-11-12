@@ -47,6 +47,16 @@
 .panel-nav::before { display: none; }
 .panel-nav :is(button,a) { border-radius: 7px; }
 .panel-nav :is(button,a) span, .panel-nav button[aria-pressed="true"] span { color: var(--app-muted); }
+.panel-nav :is(button,a) span:not(.organizer-chevron) { font-size: 19px; }
+@media (max-width: 720px) {
+  .panel-nav > :is(button,a), #organizerToggle {
+    flex-direction: column; gap: 3px; min-height: 43px;
+  }
+  .panel-nav > :is(button,a) span, #organizerToggle span:not(.organizer-chevron) {
+    display: block;
+  }
+  #dashboard #organizerToggle .organizer-chevron { display: none; }
+}
 #dashboard .panel-nav .room-nav {
   border-color: var(--room-border); background: var(--room-bg); color: var(--room-text);
   box-shadow: 0 0 12px #64a5ef48; transition: background .18s ease, box-shadow .18s ease;
@@ -69,7 +79,7 @@
 .panel-nav .organizer-options button:is(:hover,:focus-visible) {
   color: var(--app-text); background: var(--app-subtle);
 }
-.organizer-options button span { background: var(--app-subtle); color: var(--app-muted); }
+.organizer-options button span { background: transparent; color: var(--app-muted); }
 .organizer-options button[aria-current="page"] { background: var(--app-subtle); color: var(--app-text); }
 .organizer-options button[aria-current="page"]::after { color: var(--app-text); }
 .panel-account .avatar { background: var(--app-subtle); color: var(--app-text); border-color: var(--app-border); }
@@ -248,7 +258,8 @@
 
 .panel-sidebar { background: var(--renx-paper); }
 #dashboard .logo-mark { background: var(--renx-blue); color: white; }
-.panel-nav { background: transparent; border-color: transparent; }
+.panel-nav, .organizer-options { background: var(--renx-paper); }
+.panel-nav { border-color: transparent; }
 #dashboard .panel-nav .room-nav {
   color: white; background: var(--renx-blue); border-color: var(--renx-blue);
   box-shadow: 0 3px 12px #1746ad2e;
@@ -256,6 +267,7 @@
 #dashboard .panel-nav .room-nav:hover {
   background: var(--renx-blue-hover); box-shadow: 0 4px 14px #1746ad46;
 }
+#panel-overview { font-family: var(--font-body); }
 #dashboard .panel-hero {
   border: 0; border-bottom: 1px solid var(--renx-line); border-radius: 0;
   background: transparent; padding: 14px 0 30px; min-height: 0; margin-bottom: 24px;
@@ -267,7 +279,7 @@
 #panelName { color: var(--renx-blue); font-style: italic; }
 #dashboard .panel-hero #panelEmail { margin-bottom: 0; }
 #dashboard .panel-metric strong {
-  font: 400 clamp(23px,3vw,38px)/1.1 var(--renx-serif);
+  font: 500 clamp(19px,2.6vw,31px)/1.15 var(--font-body);
 }
 #dashboard .panel-section-header h2 {
   font: 400 clamp(32px,4.5vw,53px)/1.06 var(--renx-serif);
@@ -331,9 +343,6 @@
   }
   :is(#verify,#registration) :is(.secondary,.back):not(:disabled):hover {
     color: var(--renx-blue); border-color: #ccd7ef; background: var(--renx-blue-soft);
-  }
-  #dashboard .panel-nav .organizer-options button:not(:disabled):hover {
-    background: var(--renx-blue-soft); color: var(--renx-blue);
   }
 }
 .session-alert {
