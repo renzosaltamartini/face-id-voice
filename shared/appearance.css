@@ -408,3 +408,8 @@
 .ceo-account-list { display: grid; gap: 10px; margin-bottom: 16px; }
 .ceo-account-list .ceo-overview { margin: 0; overflow-wrap: anywhere; }
 .ceo-account-list summary { cursor: pointer; }
+.ceo-account-list .ceo-overview dl { display: grid; grid-template-columns: repeat(auto-fit,minmax(145px,1fr)); gap: 14px; }
+.ceo-account-list .ceo-overview dl div { background: var(--app-subtle); border-radius: 8px; padding: 10px 12px; }
+.ceo-account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 18px; font-size: 14px; }
+.ceo-account-actions a { color: var(--renx-blue); }
+.ceo-account-actions span { color: var(--app-muted); }

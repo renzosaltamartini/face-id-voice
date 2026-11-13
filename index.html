@@ -402,7 +402,9 @@ body{background:var(--site-bg)}
   .organizer-options button span{display:grid}
 }
 </style><link rel="stylesheet" href="/face-id-voice/shared/editorial.css"><link rel="stylesheet" href="/face-id-voice/shared/appearance.css"><script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script></head><body>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/solid.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/fontawesome.min.css">
+</head><body>
 <div id="panelLoading" role="status">Abriendo tu panel…</div>
 <section class="screen" id="home" hidden>
   <div class="shell">
@@ -523,7 +525,7 @@ body{background:var(--site-bg)}
       </div>
       <button type="button" data-panel="profile" aria-pressed="false"><span aria-hidden="true">○</span>Mi perfil</button>
       <a class="room-nav" id="roomLink" href="/panel/room"><span aria-hidden="true">✧</span>Room</a>
-      <a class="room-nav ceo-nav" id="ceoBadge" href="/panel/ceo" hidden><span aria-hidden="true">👑</span>CEO</a>
+      <a class="room-nav ceo-nav" id="ceoBadge" href="/panel/ceo" hidden><span aria-hidden="true"><i class="fa-solid fa-crown"></i></span>CEO</a>
     </nav>
     <div class="panel-account"><div class="avatar" id="panelInitial" aria-hidden="true"></div><button class="secondary" id="logoutButton" type="button">Cerrar sesión</button></div>
   </aside>
@@ -1018,7 +1020,58 @@ async function loadCeoAccounts(append=false){
         row.append(term,detail);
         info.append(row);
       }
-      card.append(heading,info);
+      const actions=document.createElement('div');
+      actions.className='ceo-account-actions';
+      if(account.hasFacePhoto){
+        const photo=document.createElement('a');
+        photo.href='#';
+        photo.textContent='Ver foto facial';
+        photo.onclick=async event=>{
+          event.preventDefault();
+          const tab=window.open('about:blank','_blank');
+          if(!tab){status.textContent='Permití ventanas emergentes para abrir la foto.';return}
+          tab.opener=null;
+          try{
+            const {jpeg}=await api('/ceo/accounts/photo',{token:sessionToken,id:account.id});
+            const bytes=Uint8Array.from(atob(jpeg),character=>character.charCodeAt(0));
+            const url=URL.createObjectURL(new Blob([bytes],{type:'image/jpeg'}));
+            if(!tab.closed)tab.location.replace(url);
+            setTimeout(()=>URL.revokeObjectURL(url),60_000);
+          }catch(error){
+            tab.close();
+            status.textContent=error.message;
+          }
+        };
+        actions.append(photo);
+      }else{
+        const unavailable=document.createElement('span');
+        unavailable.textContent='Sin foto facial guardada';
+        actions.append(unavailable);
+      }
+      if(account.id===panelAccount?.id){
+        const own=document.createElement('span');
+        own.textContent='Esta es tu cuenta. No se puede borrar.';
+        actions.append(own);
+      }else{
+        const remove=document.createElement('button');
+        remove.type='button';
+        remove.className='secondary action-danger';
+        remove.textContent='Borrar cuenta';
+        remove.onclick=async()=>{
+          if(!confirm('¿Borrar definitivamente la cuenta de '+account.email+' y sus datos?'))return;
+          remove.disabled=true;
+          try{
+            await api('/ceo/accounts/delete',{token:sessionToken,id:account.id});
+            card.remove();
+            await loadCeoAccounts();
+          }catch(error){
+            status.textContent=error.message;
+            remove.disabled=false;
+          }
+        };
+        actions.append(remove);
+      }
+      card.append(heading,info,actions);
       list.append(card);
     }
     ceoNext=next;
@@ -1514,7 +1567,8 @@ function showPasswordLogin(face){
   $('loginEmail').focus();
 }
 async function completeFaceRegistration(request){
-  await api('/registration/ready',{id:request.id,token:request.token});
+  await api('/registration/ready',{id:request.id,token:request.token,photo:request.facePhoto});
+  delete request.facePhoto;
   if(phoneRequest!==request)return;
   if(desktopRequest?.id===request.id){
     openProfile();
@@ -1749,6 +1803,22 @@ let neutralPitch=null;function pitchPose(f){const eyes=(f[33].y+f[263].y)/2,chin
 async function awaitFace(timeout=18000){let stable=0;const until=Date.now()+timeout;while(Date.now()<until){await wait(170);const f=lastResult?.faceLandmarks?.[0];if(f){const center=f[1];const size=Math.abs(f[454].x-f[234].x);if(center.x>.23&&center.x<.77&&center.y>.18&&center.y<.82&&size>.16){stable++;if(stable>=5)return true}else stable=0}else stable=0}return false}
 async function awaitTurn(direction,timeout=20000){const until=Date.now()+timeout;let streak=0;let maximum=0;while(Date.now()<until){await wait(130);const f=lastResult?.faceLandmarks?.[0];if(!f){streak=0;continue}const yaw=facePose(f);const signed=yaw*direction;maximum=Math.max(maximum,signed);if(signed>.065){if(++streak>=3)return true}else streak=0}throw Error('No se detectó el giro. Mové la cabeza lentamente, sin mover el teléfono.')}
 
+function registrationPortrait(frame, landmarks){
+  const canvas=document.createElement('canvas');
+  canvas.width=canvas.height=192;
+  const width=frame.videoWidth, height=frame.videoHeight;
+  if(!width||!height||!landmarks)return;
+  const left=landmarks[234].x*width, right=landmarks[454].x*width;
+  const center=landmarks[1];
+  const side=Math.min(width,height,Math.max(80,Math.abs(right-left)*1.8));
+  const x=Math.max(0,Math.min(width-side,center.x*width-side/2));
+  const y=Math.max(0,Math.min(height-side,center.y*height-side/2));
+  canvas.getContext('2d').drawImage(frame,x,y,side,side,0,0,192,192);
+  for(const quality of [0.78,0.6,0.4]){
+    const jpeg=canvas.toDataURL('image/jpeg',quality).split(',')[1];
+    if(jpeg?.length<=18000)return jpeg;
+  }
+}
 async function flow(){
   if(working||!landmarker||!phoneRequest)return;
   const current=phoneRequest;
@@ -1787,6 +1857,10 @@ async function flow(){
         throw Error('Este rostro ya está registrado en este navegador. Volvé e iniciá sesión.');
       }
       current.faceSamples=captured.samples;
+      const portrait=registrationPortrait(video,lastResult?.faceLandmarks?.[0]);
+      if(portrait&&confirm('¿Querés guardar una foto de tu rostro junto a tu cuenta? Solo la cuenta administradora de Renx podrá verla. Podés continuar el registro sin guardarla.')){
+        current.facePhoto=portrait;
+      }
     }else{
       current.credentialId=bestFaceMatch(captured.model,captured.samples,savedFaces());
       if(!current.credentialId)throw Error('El rostro no coincide con una referencia guardada. Volvé a intentar.');

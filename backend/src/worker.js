@@ -201,7 +201,7 @@ export default {
         qr.make();
         return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
       }
-      if (['/me', '/ceo/accounts', '/room/pages/live', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/order', '/room/entries/list', '/room/entries/add', '/room/entries/remove', '/room/entries/toggle', '/room/folders/save', '/room/folders/delete', '/room/folders/move', '/room/pages/move', '/room/pages/get', '/room/share/settings', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
+      if (['/me', '/ceo/accounts', '/ceo/accounts/delete', '/ceo/accounts/photo', '/room/pages/live', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/order', '/room/entries/list', '/room/entries/add', '/room/entries/remove', '/room/entries/toggle', '/room/folders/save', '/room/folders/delete', '/room/folders/move', '/room/pages/move', '/room/pages/get', '/room/share/settings', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -215,6 +215,17 @@ export default {
           FROM sessions s JOIN accounts a ON a.id = s.account_id WHERE s.token_hash = ? AND s.expires_at > ?`, now, rpID, key, now).first();
         if (!account) return fail(401, 'Volvé a iniciar sesión.');
         if (route === '/me' && account.id === CEO_ACCOUNT_ID?.trim()) account.ceo = true;
+        if (route === '/ceo/accounts/delete' || route === '/ceo/accounts/photo') {
+          if (account.id !== CEO_ACCOUNT_ID?.trim()) return fail(403, 'Esta sección es exclusiva de la cuenta CEO.');
+          if (!validToken(body.id)) return fail(400, 'Cuenta inválida.');
+          if (route === '/ceo/accounts/photo') {
+            const photo = await query('SELECT jpeg FROM account_face_photos WHERE account_id = ?', body.id).first();
+            return photo ? json(photo) : fail(404, 'Esta cuenta no tiene foto facial guardada.');
+          }
+          if (body.id === account.id) return fail(403, 'Esta es tu cuenta y no se puede borrar desde acá.');
+          const deleted = await query('DELETE FROM accounts WHERE id = ? AND id <> ?', body.id, account.id).run();
+          return deleted.meta.changes ? json({ deleted: true }) : fail(404, 'La cuenta ya no está disponible.');
+        }
         if (route === '/ceo/accounts') {
           if (account.id !== CEO_ACCOUNT_ID?.trim()) return fail(403, 'Esta sección es exclusiva de la cuenta CEO.');
           const after = body.after ?? '';
@@ -224,7 +235,8 @@ export default {
               a.nationality AS country, a.province, a.locality AS city, a.created_at AS createdAt,
               (SELECT MAX(e.created_at) FROM account_events e WHERE e.account_id = a.id
                 AND e.type = 'signed_in') AS lastSignIn,
-              (SELECT COUNT(*) FROM sessions s WHERE s.account_id = a.id AND s.expires_at > ?) AS activeSessions
+              (SELECT COUNT(*) FROM sessions s WHERE s.account_id = a.id AND s.expires_at > ?) AS activeSessions,
+              EXISTS (SELECT 1 FROM account_face_photos f WHERE f.account_id = a.id) AS hasFacePhoto
               FROM accounts a WHERE a.id > ? ORDER BY a.id LIMIT 51`, now, after),
             query('SELECT COUNT(*) AS count FROM accounts'),
           ]);
@@ -550,8 +562,13 @@ export default {
       const registration = handoff.purpose === 'registration';
       if (route === '/registration/ready') {
         if (!registration) return fail(400, 'Solicitud inválida.');
-        const result = await query(`UPDATE qr_requests SET approved_at = ?, pending_credential = NULL, challenge = NULL
-          WHERE id = ? AND expires_at > ? AND consumed_at IS NULL AND approved_at IS NULL`, now, handoff.id, now).run();
+        const photo = body.photo ?? null;
+        if (photo !== null && (typeof photo !== 'string' || photo.length > 18000 ||
+            photo.length % 4 !== 0 || !/^\/9j\/[A-Za-z0-9+/]+={0,2}$/.test(photo))) {
+          return fail(400, 'No se pudo guardar la foto facial.');
+        }
+        const result = await query(`UPDATE qr_requests SET approved_at = ?, pending_credential = NULL, challenge = NULL, pending_face_photo = ?
+          WHERE id = ? AND expires_at > ? AND consumed_at IS NULL AND approved_at IS NULL`, now, photo, handoff.id, now).run();
         return result.meta.changes ? json({ approved: true }) : fail(409, 'La solicitud ya se confirmó.');
       }
       if (route === '/approve-session') {
@@ -630,7 +647,13 @@ export default {
           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM qr_requests WHERE id = ? AND consumed_at IS NULL AND expires_at > ?`,
         accountId, data.email, data.name, data.surname, data.age, data.sex, data.country, data.province, data.city, now, salt, verifier, handoff.id, Date.now()));
       }
-      commands.push(query(`UPDATE qr_requests SET consumed_at = ?, redeem_hash = ?, pending_credential = NULL
+      if (registration && handoff.pending_face_photo) {
+        commands.push(query(`INSERT INTO account_face_photos (account_id, jpeg)
+          SELECT a.id, q.pending_face_photo FROM qr_requests q JOIN accounts a ON a.id = q.id
+          WHERE q.id = ? AND q.pending_face_photo IS NOT NULL AND q.consumed_at IS NULL AND q.expires_at > ?`,
+          handoff.id, now));
+      }
+      commands.push(query(`UPDATE qr_requests SET consumed_at = ?, redeem_hash = ?, pending_credential = NULL, pending_face_photo = NULL
         WHERE id = ? AND consumed_at IS NULL AND approved_at IS NOT NULL AND expires_at > ?`, now, sessionHash, handoff.id, now));
       commands.push(query(`INSERT INTO sessions (token_hash, account_id, expires_at, device_id, device_name, created_at)
         SELECT ?, ?, ?, ?, ?, ? FROM qr_requests WHERE id = ? AND redeem_hash = ?`,
