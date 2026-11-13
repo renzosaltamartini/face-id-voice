@@ -387,10 +387,7 @@
   background: #a51d33; box-shadow: 0 4px 14px #a51d3346;
 }
 .panel-nav:has(.ceo-nav:not([hidden])) { grid-template-columns: repeat(5,minmax(0,1fr)); }
-.ceo-overview { margin-bottom: 16px; }
-.ceo-overview dl { display: flex; flex-wrap: wrap; gap: 14px 32px; margin: 12px 0 0; }
-.ceo-overview dt { color: var(--app-muted); font-size: 12px; }
-.ceo-overview dd { margin: 4px 0 0; font-size: 15px; }
+
 
 .password-login { display: grid; gap: 10px; text-align: left; }
 .password-login label { display: grid; gap: 5px; font-size: 13px; }
@@ -405,11 +402,45 @@
   background: #fff; color: var(--renx-ink);
 }
 #verify #start { width: 100%; margin-top: 6px; }
-.ceo-account-list { display: grid; gap: 10px; margin-bottom: 16px; }
-.ceo-account-list .ceo-overview { margin: 0; overflow-wrap: anywhere; }
-.ceo-account-list summary { cursor: pointer; }
-.ceo-account-list .ceo-overview dl { display: grid; grid-template-columns: repeat(auto-fit,minmax(145px,1fr)); gap: 14px; }
-.ceo-account-list .ceo-overview dl div { background: var(--app-subtle); border-radius: 8px; padding: 10px 12px; }
-.ceo-account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 18px; font-size: 14px; }
+#dashboard .panel-nav :is(.ceo-nav,.room-nav) > span {
+  width: 15px; height: 15px; display: inline-grid; place-items: center; font-size: 15px; line-height: 1;
+}
+#dashboard .panel-nav .ceo-nav i { font-size: 12px; }
+#dashboard :is(#panel-ceo,#panel-profile) .panel-section-header { margin-bottom: 14px; }
+#dashboard :is(#panel-ceo,#panel-profile) .panel-section-header h2 { font-size: clamp(22px,4vw,28px); }
+.ceo-account-list { display: grid; gap: 8px; margin-bottom: 12px; }
+#dashboard .ceo-overview { padding: 0; overflow-wrap: anywhere; }
+.ceo-overview summary {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; list-style: none;
+}
+.ceo-overview summary::-webkit-details-marker { display: none; }
+.ceo-overview summary::after {
+  content: ''; width: 7px; height: 7px; margin-left: auto; margin-right: 4px; flex: none;
+  border: solid var(--app-muted); border-width: 0 1px 1px 0; transform: rotate(45deg);
+  transition: transform .18s ease;
+}
+.ceo-overview[open] summary::after { transform: rotate(225deg); }
+.account-list-avatar {
+  display: grid; place-items: center; width: 32px; height: 32px; flex: none;
+  border-radius: 50%; background: var(--app-subtle); color: var(--renx-blue); font-size: 11px; text-transform: uppercase;
+}
+.account-list-identity { display: grid; gap: 2px; color: var(--app-muted); font-size: 12px; }
+.account-list-identity strong { color: var(--app-text); font-size: 14px; font-weight: 600; }
+.account-facts {
+  display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,155px),1fr));
+  gap: 11px 18px; margin: 0; overflow-wrap: anywhere; text-align: left;
+}
+.account-facts dt { color: var(--app-muted); font-size: 11px; margin-bottom: 3px; }
+.account-facts dd { margin: 0; color: var(--app-text); font-size: 13px; }
+.account-country { display: inline-flex; align-items: center; gap: 6px; }
+.account-country img { object-fit: cover; border-radius: 2px; }
+.ceo-overview .account-facts { padding: 12px 14px; border-top: 1px solid var(--renx-line); }
+.ceo-account-actions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  padding: 8px 14px; border-top: 1px solid var(--renx-line); font-size: 12px;
+}
 .ceo-account-actions a { color: var(--renx-blue); }
 .ceo-account-actions span { color: var(--app-muted); }
+#dashboard #panel-profile .panel-card { padding: 14px; }
+#dashboard #profileRead > button { margin-top: 14px; }
+#dashboard :is(.ceo-account-actions button,#profileRead > button) { padding: 6px 10px; font-size: 12px; }

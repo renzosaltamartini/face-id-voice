@@ -576,9 +576,9 @@ body{background:var(--site-bg)}
       </section>
     </section>
     <section id="panel-profile" hidden>
-      <header class="panel-section-header"><h2>Datos personales</h2><p>Datos que guardaste al crear tu cuenta.</p></header>
+      <header class="panel-section-header"><h2>Mi perfil</h2></header>
       <article class="panel-card">
-        <div id="profileRead"><dl class="profile-details" id="profileDetails"></dl><button class="primary" id="editProfile" type="button">Editar perfil</button></div>
+        <div id="profileRead"><dl class="account-facts" id="profileDetails"></dl><button class="primary" id="editProfile" type="button"><i class="fa-solid fa-pen" aria-hidden="true"></i> Editar perfil</button></div>
         <form id="editProfileForm" hidden>
           <div class="panel-edit-grid">
             <label>Nombre<input id="editName" required maxlength="48" autocomplete="given-name"></label>
@@ -993,6 +993,33 @@ function setOrganizer(open){
 const atCeo=()=>/\/panel\/ceo\/?$/.test(location.pathname);
 const openCeoAfterLogin=atCeo()||roomReturn.get('next')==='ceo';
 let ceoNext=null;
+const countryNames=new Intl.DisplayNames(['es'],{type:'region'});
+const sexNames={otro:'Otro','sin-declarar':'Prefiero no decirlo',femenino:'Femenino',masculino:'Masculino'};
+function countryDisplay(code){
+  if(!/^[A-Z]{2}$/.test(code??''))return code;
+  const label=countryNames.of(code);
+  if(!label||label===code)return code;
+  const group=document.createElement('span'), flag=document.createElement('img');
+  group.className='account-country';
+  flag.alt='';
+  flag.width=20;
+  flag.height=14;
+  flag.loading='lazy';
+  flag.src='https://flagcdn.com/w40/'+code.toLowerCase()+'.png';
+  flag.onerror=()=>flag.remove();
+  group.append(flag,label);
+  return group;
+}
+function renderAccountFacts(list,fields){
+  list.className='account-facts';
+  for(const [label,value] of fields){
+    const row=document.createElement('div'), term=document.createElement('dt'), detail=document.createElement('dd');
+    term.textContent=label;
+    detail.append(value??'—');
+    row.append(term,detail);
+    list.append(row);
+  }
+}
 async function loadCeoAccounts(append=false){
   const more=$('ceoMore'), status=$('ceoStatus'), list=$('ceoAccountList');
   if(more.disabled)return;
@@ -1005,27 +1032,30 @@ async function loadCeoAccounts(append=false){
     for(const account of accounts){
       const card=document.createElement('details'), heading=document.createElement('summary'), info=document.createElement('dl');
       card.className='panel-card ceo-overview';
-      heading.textContent=[account.name,account.surname].filter(Boolean).join(' ')+' · '+account.email;
+      const badge=document.createElement('span'), identity=document.createElement('span');
+      const name=document.createElement('strong'), email=document.createElement('span');
+      badge.className='account-list-avatar';
+      badge.setAttribute('aria-hidden','true');
+      badge.textContent=(account.name?.[0]??'')+(account.surname?.[0]??'');
+      name.textContent=[account.name,account.surname].filter(Boolean).join(' ');
+      email.textContent=account.email;
+      identity.className='account-list-identity';
+      identity.append(name,email);
+      heading.append(badge,identity);
       const fields=[
         ['Nombre',account.name],['Apellido',account.surname],['Correo',account.email],
-        ['Edad',account.age],['Género',account.sex],['País',account.country],['Provincia',account.province],['Localidad',account.city],
+        ['Edad',account.age],['Sexo',sexNames[account.sex]],['País',countryDisplay(account.country)],['Provincia',account.province],['Localidad',account.city],
         ['Cuenta creada',account.createdAt?date.format(account.createdAt):null],
         ['Último ingreso',account.lastSignIn?date.format(account.lastSignIn):null],
         ['Sesiones activas',account.activeSessions],
       ];
-      for(const [label,value] of fields){
-        const row=document.createElement('div'), term=document.createElement('dt'), detail=document.createElement('dd');
-        term.textContent=label;
-        detail.textContent=value??'—';
-        row.append(term,detail);
-        info.append(row);
-      }
+      renderAccountFacts(info,fields);
       const actions=document.createElement('div');
       actions.className='ceo-account-actions';
       if(account.hasFacePhoto){
         const photo=document.createElement('a');
         photo.href='#';
-        photo.textContent='Ver foto facial';
+        photo.innerHTML='<i class="fa-solid fa-image" aria-hidden="true"></i> Ver foto facial';
         photo.onclick=async event=>{
           event.preventDefault();
           const tab=window.open('about:blank','_blank');
@@ -1056,7 +1086,7 @@ async function loadCeoAccounts(append=false){
         const remove=document.createElement('button');
         remove.type='button';
         remove.className='secondary action-danger';
-        remove.textContent='Borrar cuenta';
+        remove.innerHTML='<i class="fa-solid fa-trash-can" aria-hidden="true"></i> Borrar cuenta';
         remove.onclick=async()=>{
           if(!confirm('¿Borrar definitivamente la cuenta de '+account.email+' y sus datos?'))return;
           remove.disabled=true;
@@ -1171,16 +1201,11 @@ function renderAccount(account){
   $('memberSince').textContent=account.createdAt?new Date(account.createdAt).toLocaleDateString('es-AR',{month:'short',year:'numeric'}):'—';
   const data=$('profileDetails');
   data.replaceChildren();
-  const names=new Intl.DisplayNames(['es'],{type:'region'});
-  for(const [label,value] of [
+  renderAccountFacts(data,[
     ['Nombre',account.name+' '+account.surname],['Correo de la cuenta',account.email],['Edad',account.age],
-    ['Sexo',{'otro':'Otro','sin-declarar':'Prefiero no decirlo','femenino':'Femenino','masculino':'Masculino'}[account.sex]],
-    ['Nacionalidad',account.country&&names.of(account.country)],['Provincia',account.province],['Localidad',account.city]
-  ]){
-    if(!value)continue;
-    const row=document.createElement('div'),term=document.createElement('dt'),detail=document.createElement('dd');
-    term.textContent=label;detail.textContent=value;row.append(term,detail);data.append(row);
-  }
+    ['Sexo',sexNames[account.sex]],['Nacionalidad',countryDisplay(account.country)],
+    ['Provincia',account.province],['Localidad',account.city],
+  ]);
 }
 async function refreshAccount(){
   const token=sessionToken;
