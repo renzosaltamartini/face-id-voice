@@ -401,7 +401,7 @@ body{background:var(--site-bg)}
   .organizer-options{left:4px;right:4px;width:auto;max-width:none}
   .organizer-options button span{display:grid}
 }
-</style><link rel="stylesheet" href="/face-id-voice/shared/editorial.css"><link rel="stylesheet" href="/face-id-voice/shared/appearance.css"><link rel="stylesheet" href="/face-id-voice/shared/site-layout.css?v=neutral"><script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous" defer></script>
+</style><link rel="stylesheet" href="/face-id-voice/shared/editorial.css"><link rel="stylesheet" href="/face-id-voice/shared/appearance.css"><link rel="stylesheet" href="/face-id-voice/shared/site-layout.css?v=panel-refined"><script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/solid.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/fontawesome.min.css">
 </head><body>
@@ -1056,14 +1056,26 @@ async function loadCeoAccounts(append=false){
       identity.className='account-list-identity';
       identity.append(name,email);
       heading.append(badge,identity);
-      const fields=[
-        ['Nombre',account.name],['Apellido',account.surname],['Correo',account.email],
-        ['Edad',account.age],['Sexo',sexNames[account.sex]],['País',countryDisplay(account.country)],['Provincia',account.province],['Localidad',account.city],
-        ['Cuenta creada',account.createdAt?date.format(account.createdAt):null],
-        ['Último ingreso',account.lastSignIn?date.format(account.lastSignIn):null],
-        ['Sesiones activas',account.activeSessions],
-      ];
-      renderAccountFacts(info,fields);
+      const activity=document.createElement('dl');
+      const details=document.createElement('div');
+      details.className='ceo-account-details';
+      for(const [label,list,fields] of [
+        ['Perfil',info,[
+          ['Edad',account.age],['Sexo',sexNames[account.sex]],['País',countryDisplay(account.country)],
+          ['Provincia',account.province],['Localidad',account.city],
+        ]],
+        ['Actividad',activity,[
+          ['Cuenta creada',account.createdAt?date.format(account.createdAt):null],
+          ['Último ingreso',account.lastSignIn?date.format(account.lastSignIn):null],
+          ['Sesiones activas',account.activeSessions],
+        ]],
+      ]){
+        const section=document.createElement('section'), title=document.createElement('h3');
+        title.textContent=label;
+        renderAccountFacts(list,fields);
+        section.append(title,list);
+        details.append(section);
+      }
       const actions=document.createElement('div');
       actions.className='ceo-account-actions';
       if(account.hasFacePhoto){
@@ -1117,7 +1129,7 @@ async function loadCeoAccounts(append=false){
         };
         actions.append(remove);
       }
-      card.append(heading,info,actions);
+      card.append(heading,details,actions);
       list.append(card);
     }
     ceoNext=next;

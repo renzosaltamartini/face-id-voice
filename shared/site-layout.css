@@ -124,3 +124,40 @@
 :is(#home,#verify,#registration,#dashboard) :is(button,a,input,select,summary):focus-visible {
   outline-color: #545454;
 }
+
+#dashboard .organizer-options { width: max-content; min-width: 0; padding: 4px; border-radius: 10px; }
+#dashboard .organizer-options button {
+  display: flex; justify-content: flex-start; gap: 7px; min-height: 34px;
+  padding: 4px 9px; font-size: 12px; border-radius: 6px;
+}
+#dashboard .organizer-options button span { width: 21px; height: 21px; font-size: 12px; background: var(--app-subtle); color: var(--app-text); }
+#dashboard .panel-nav .room-nav {
+  color: #333; background: #eaeae9; border-color: #dededc; box-shadow: none;
+}
+#dashboard .panel-nav .ceo-nav { color: #873843; background: #f6eaec; border-color: #eadadd; }
+#dashboard .panel-nav .room-nav:is(:hover,:focus-visible,[aria-current="page"]) { background: #dededc; transform: none; }
+#dashboard .panel-nav .ceo-nav:is(:hover,:focus-visible,[aria-current="page"]) { background: #efdbdf; }
+@media (min-width: 860px) {
+  #dashboard .panel-nav .room-nav { justify-self: start; min-height: 32px; padding: 5px 12px; }
+}
+
+#dashboard .ceo-overview { overflow: clip; }
+.ceo-overview summary { padding: 13px 16px; transition: background .18s ease; }
+.ceo-overview summary:hover, .ceo-overview[open] summary { background: #f6f6f5; }
+.ceo-account-details {
+  display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr);
+  gap: 16px 24px; padding: 16px; border-top: 1px solid var(--renx-line);
+  animation: accountDetailsAppear .24s ease-out both;
+}
+.ceo-account-details h3 { margin: 0 0 9px; font-size: 13px; }
+.ceo-account-details .account-facts { display: grid; grid-template-columns: minmax(0,1fr); gap: 0; border: 0; padding: 0; }
+.ceo-account-details .account-facts > div {
+  display: grid; grid-template-columns: minmax(70px,.9fr) minmax(0,1.25fr); align-items: center;
+  gap: 6px; padding: 4px 0; border-bottom: 1px solid #eeeeed;
+}
+.ceo-account-details dt { margin: 0; }
+.ceo-account-details dd { min-height: auto; padding: 4px 7px; font-size: 12px; }
+.ceo-account-actions { padding: 10px 16px; }
+@media (max-width: 580px) {
+  .ceo-account-details { grid-template-columns: minmax(0,1fr); }
+}
