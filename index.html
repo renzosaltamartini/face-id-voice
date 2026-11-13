@@ -592,7 +592,22 @@ body{background:var(--site-bg)}
           <div class="panel-actions"><button class="primary" id="saveProfile" type="submit">Guardar cambios</button><button class="secondary" id="cancelProfileEdit" type="button">Cancelar</button></div>
         </form>
       </article>
-      <article class="panel-card account-removal">
+      <dialog id="changePasswordDialog" aria-labelledby="changePasswordTitle">
+        <form id="changePasswordForm">
+          <h3 id="changePasswordTitle">Cambiar contraseña</h3>
+          <div class="panel-edit-grid password-fields">
+            <label>Contraseña actual<input id="currentAccountPassword" type="password" autocomplete="current-password" maxlength="128" required></label>
+            <label>Nueva contraseña<input id="nextAccountPassword" type="password" autocomplete="new-password" minlength="15" maxlength="128" required></label>
+            <label>Confirmá la nueva contraseña<input id="confirmAccountPassword" type="password" autocomplete="new-password" minlength="15" maxlength="128" required></label>
+          </div>
+          <p id="changePasswordError" role="alert" hidden></p>
+          <div class="panel-actions">
+            <button class="primary" id="submitPasswordChange" type="submit">Guardar contraseña</button>
+            <button class="secondary" id="cancelPasswordChange" type="button">Cancelar</button>
+          </div>
+        </form>
+      </dialog>
+      <article class="panel-card account-removal" id="profileAccountRemoval">
         <h3>Borrar cuenta</h3>
         <p>Eliminá tus datos de Renx y cerrá tus sesiones en todos los dispositivos.</p>
         <button class="secondary danger-button" id="openDeleteAccount" type="button">Borrar cuenta</button>
@@ -1077,7 +1092,7 @@ async function loadCeoAccounts(append=false){
         unavailable.textContent='Sin foto facial guardada';
         actions.append(unavailable);
       }
-      if(account.id===panelAccount?.id){
+      if(account.isOwnAccount||account.id===panelAccount?.id||account.email===panelAccount?.email){
         const own=document.createElement('span');
         own.textContent='Esta es tu cuenta. No se puede borrar.';
         actions.append(own);
@@ -1192,6 +1207,7 @@ function renderAccount(account){
   $('passkeyCount').closest('.panel-metric').hidden=Boolean(account.hasPassword);
   updateFaceButtons();
   $('ceoBadge').hidden=!account.ceo;
+  $('profileAccountRemoval').hidden=Boolean(account.ceo);
   $('panelEmail').textContent=account.email;
   $('panelName').textContent=account.name;
   $('panelInitial').textContent=account.name.charAt(0).toUpperCase();
@@ -1200,12 +1216,52 @@ function renderAccount(account){
   $('memberSince').textContent=account.createdAt?new Date(account.createdAt).toLocaleDateString('es-AR',{month:'short',year:'numeric'}):'—';
   const data=$('profileDetails');
   data.replaceChildren();
+  const password=document.createElement('span');
+  password.className='profile-password-value';
+  password.append(account.hasPassword?'••••••••':'Sin contraseña');
+  if(account.hasPassword){
+    const change=document.createElement('button');
+    change.type='button';
+    change.className='secondary';
+    change.textContent='Cambiar contraseña';
+    change.onclick=()=>{
+      $('changePasswordForm').reset();
+      $('changePasswordError').hidden=true;
+      $('changePasswordDialog').showModal();
+    };
+    password.append(change);
+  }
   renderAccountFacts(data,[
-    ['Nombre',account.name+' '+account.surname],['Correo de la cuenta',account.email],['Edad',account.age],
+    ['Nombre',account.name+' '+account.surname],['Correo de la cuenta',account.email],['Contraseña de la cuenta',password],['Edad',account.age],
     ['Sexo',sexNames[account.sex]],['Nacionalidad',countryDisplay(account.country)],
     ['Provincia',account.province],['Localidad',account.city],
   ]);
 }
+$('cancelPasswordChange').onclick=()=>$('changePasswordDialog').close();
+$('changePasswordDialog').addEventListener('close',()=>$('changePasswordForm').reset());
+$('changePasswordDialog').addEventListener('cancel',event=>{
+  if($('submitPasswordChange').disabled)event.preventDefault();
+});
+$('changePasswordForm').onsubmit=async event=>{
+  event.preventDefault();
+  const submit=$('submitPasswordChange'), cancel=$('cancelPasswordChange'), feedback=$('changePasswordError');
+  if(submit.disabled)return;
+  feedback.hidden=true;
+  submit.disabled=cancel.disabled=true;
+  try{
+    await api('/profile/password',{
+      token:sessionToken,current:$('currentAccountPassword').value,
+      password:$('nextAccountPassword').value,confirmation:$('confirmAccountPassword').value,
+    });
+    $('changePasswordDialog').close();
+    panelMessage('Contraseña actualizada.');
+  }catch(error){
+    feedback.textContent=error.message;
+    feedback.hidden=false;
+  }finally{
+    submit.disabled=cancel.disabled=false;
+  }
+};
 async function refreshAccount(){
   const token=sessionToken;
   const account=await api('/me',{token});

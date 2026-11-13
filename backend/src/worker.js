@@ -111,6 +111,7 @@ export default {
         if (!timingSafeEqual(candidate, expected) || !account?.password_hash ||
             (body.faceAccountId && body.faceAccountId !== account.id)) return fail(401, 'El correo o la contraseña no coincide.');
         if (route === '/password/delete-account') {
+          if (account.id === CEO_ACCOUNT_ID?.trim()) return fail(403, 'La cuenta CEO no se puede borrar.');
           if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
           const result = await query(`DELETE FROM accounts WHERE id = ? AND EXISTS (
             SELECT 1 FROM sessions WHERE account_id = ? AND token_hash = ? AND expires_at > ?
@@ -201,7 +202,7 @@ export default {
         qr.make();
         return json({ id, desktop, phone, expires, image: qr.createDataURL(4, 12) });
       }
-      if (['/me', '/ceo/accounts', '/ceo/accounts/delete', '/ceo/accounts/photo', '/room/pages/live', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/order', '/room/entries/list', '/room/entries/add', '/room/entries/remove', '/room/entries/toggle', '/room/folders/save', '/room/folders/delete', '/room/folders/move', '/room/pages/move', '/room/pages/get', '/room/share/settings', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
+      if (['/me', '/ceo/accounts', '/ceo/accounts/delete', '/ceo/accounts/photo', '/room/pages/live', '/logout', '/devices', '/devices/revoke', '/devices/revoke-others', '/devices/rename', '/activity', '/room/list', '/room/order', '/room/entries/list', '/room/entries/add', '/room/entries/remove', '/room/entries/toggle', '/room/folders/save', '/room/folders/delete', '/room/folders/move', '/room/pages/move', '/room/pages/get', '/room/share/settings', '/room/pages/save', '/room/pages/delete', '/passkeys', '/passkeys/rename', '/passkeys/revoke', '/profile/update', '/profile/password', '/account/delete/options', '/account/delete', '/passkey/options', '/passkey/register', '/face/credential'].includes(route)) {
         if (!validToken(body.token)) return fail(401, 'Volvé a iniciar sesión.');
         const key = await hash(body.token);
         if (route === '/logout') {
@@ -240,7 +241,7 @@ export default {
               FROM accounts a WHERE a.id > ? ORDER BY a.id LIMIT 51`, now, after),
             query('SELECT COUNT(*) AS count FROM accounts'),
           ]);
-          const accounts = listing.results.slice(0, 50);
+          const accounts = listing.results.slice(0, 50).map(row => ({ ...row, isOwnAccount: row.id === account.id }));
           return json({ accounts, total: total.results[0].count, next: listing.results.length > 50 ? accounts.at(-1).id : null });
         }
         if (route === '/room/pages/live') {
@@ -249,6 +250,9 @@ export default {
             account.id, body.id).first();
           return share ? await roomPresence(share, (account.name + ' ' + account.surname).trim().slice(0, 50))
             : json({ permission: 'off', peers: [] });
+        }
+        if (account.id === CEO_ACCOUNT_ID?.trim() && ['/account/delete/options','/account/delete'].includes(route)) {
+          return fail(403, 'La cuenta CEO no se puede borrar.');
         }
         if (route === '/account/delete/options') {
           const { results } = await query('SELECT id FROM passkeys WHERE account_id = ? AND rp_id = ?', account.id, rpID).all();
@@ -474,6 +478,32 @@ export default {
             await logEvent(account.id, 'passkey_removed');
           }
           return json({});
+        }
+        if (route === '/profile/password') {
+          if (!acceptablePassword(body.password) || body.password !== body.confirmation || body.password === body.current ||
+              typeof body.current !== 'string' || !body.current || body.current.length > 128) {
+            return fail(400, 'Ingresá tu contraseña actual y confirmá una nueva de 15 a 128 caracteres con variedad.');
+          }
+          const bucket = 'change-password:' + account.id;
+          const limit = now - 15 * 60_000;
+          const attempt = await query(`INSERT INTO password_attempts (bucket, started_at, attempts) VALUES (?, ?, 1)
+            ON CONFLICT(bucket) DO UPDATE SET attempts = CASE WHEN started_at <= ? THEN 1 ELSE attempts + 1 END,
+            started_at = CASE WHEN started_at <= ? THEN excluded.started_at ELSE started_at END RETURNING attempts`,
+            bucket, now, limit, limit).first();
+          if (attempt.attempts > 10) return fail(429, 'Demasiados intentos. Volvé a probar en unos minutos.');
+          const credentials = await query('SELECT password_salt, password_hash FROM accounts WHERE id = ?', account.id).first();
+          if (!credentials?.password_hash) return fail(409, 'Esta cuenta no tiene una contraseña para cambiar.');
+          const current = await derivePassword(body.current, credentials.password_salt, AUTH_PASSWORD_PEPPER);
+          if (!timingSafeEqual(current, fromBase64(credentials.password_hash))) return fail(400, 'La contraseña actual no coincide.');
+          const salt = toBase64(crypto.getRandomValues(new Uint8Array(16)));
+          const verifier = toBase64(await derivePassword(body.password, salt, AUTH_PASSWORD_PEPPER));
+          const changed = await query(`UPDATE accounts SET password_salt = ?, password_hash = ?
+            WHERE id = ? AND password_hash = ? AND EXISTS
+            (SELECT 1 FROM sessions WHERE token_hash = ? AND account_id = accounts.id AND expires_at > ?)`,
+            salt, verifier, account.id, credentials.password_hash, key, Date.now()).run();
+          if (!changed.meta.changes) return fail(409, 'La cuenta o la sesión cambió. Volvé a iniciar sesión.');
+          await query('DELETE FROM password_attempts WHERE bucket = ?', bucket).run();
+          return json({ changed: true });
         }
         if (route === '/profile/update') {
           const profile = profileFrom({ ...body.profile, email: account.email });

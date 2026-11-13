@@ -444,3 +444,17 @@
 #dashboard #panel-profile .panel-card { padding: 14px; }
 #dashboard #profileRead > button { margin-top: 14px; }
 #dashboard :is(.ceo-account-actions button,#profileRead > button) { padding: 6px 10px; font-size: 12px; }
+#profileDetails { grid-template-columns: minmax(0,1fr); gap: 7px; }
+#profileDetails > div { display: grid; grid-template-columns: minmax(105px,155px) minmax(0,1fr); align-items: center; gap: 8px; }
+#profileDetails dt { margin: 0; }
+.account-facts dd { background: var(--app-subtle); border-radius: 7px; padding: 6px 9px; min-height: 30px; }
+.profile-password-value { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 5px 10px; }
+#dashboard .profile-password-value button { padding: 4px 8px; font-size: 11px; }
+#changePasswordDialog {
+  width: min(420px,calc(100% - 28px)); margin: auto; padding: 18px;
+  background: var(--renx-paper); border: 1px solid var(--renx-line); border-radius: 14px; color: var(--app-text);
+}
+#changePasswordDialog::backdrop { background: #17243a66; }
+#changePasswordDialog h3 { margin: 0 0 14px; }
+#changePasswordDialog .password-fields { grid-template-columns: 1fr; }
+#changePasswordError { color: #a51d33; font-size: 13px; }
