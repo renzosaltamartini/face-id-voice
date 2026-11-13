@@ -993,7 +993,6 @@ function setOrganizer(open){
 const atCeo=()=>/\/panel\/ceo\/?$/.test(location.pathname);
 const openCeoAfterLogin=atCeo()||roomReturn.get('next')==='ceo';
 let ceoNext=null;
-const countryNames=new Intl.DisplayNames(['es'],{type:'region'});
 const sexNames={otro:'Otro','sin-declarar':'Prefiero no decirlo',femenino:'Femenino',masculino:'Masculino'};
 function countryDisplay(code){
   if(!/^[A-Z]{2}$/.test(code??''))return code;
