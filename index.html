@@ -401,7 +401,7 @@ body{background:var(--site-bg)}
   .organizer-options{left:4px;right:4px;width:auto;max-width:none}
   .organizer-options button span{display:grid}
 }
-</style><link rel="stylesheet" href="/face-id-voice/shared/editorial.css"><link rel="stylesheet" href="/face-id-voice/shared/appearance.css"><link rel="stylesheet" href="/face-id-voice/shared/site-layout.css?v=room-accounts"><script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous" defer></script>
+</style><link rel="stylesheet" href="/face-id-voice/shared/editorial.css"><link rel="stylesheet" href="/face-id-voice/shared/appearance.css"><link rel="stylesheet" href="/face-id-voice/shared/site-layout.css?v=room-panel"><script src="https://cdn.jsdelivr.net/npm/@simplewebauthn/browser@14.0.0/dist/bundle/index.umd.min.js" integrity="sha384-06g944bCm8L/wG3i0Q8PdB8jccE4GdpHdNCa1tJY8eMqoP3GIHGJdL6B5lD5OMGD" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" integrity="sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx" crossorigin="anonymous" defer></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/solid.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/fontawesome.min.css">
 </head><body>
@@ -1078,6 +1078,10 @@ async function loadCeoAccounts(append=false){
       }
       const actions=document.createElement('div');
       actions.className='ceo-account-actions';
+      const face=document.createElement('section'), faceTitle=document.createElement('h3');
+      face.className='ceo-account-photo';
+      faceTitle.textContent='Foto facial';
+      face.append(faceTitle);
       if(account.hasFacePhoto){
         const photo=document.createElement('a');
         photo.href='#';
@@ -1098,17 +1102,17 @@ async function loadCeoAccounts(append=false){
             status.textContent=error.message;
           }
         };
-        actions.append(photo);
+        face.append(photo);
       }else{
         const unavailable=document.createElement('span');
         unavailable.className='account-status';
         unavailable.textContent='Sin foto facial guardada';
-        actions.append(unavailable);
+        face.append(unavailable);
       }
       if(account.isOwnAccount||account.id===panelAccount?.id||account.email===panelAccount?.email){
         const own=document.createElement('span');
         own.className='account-status account-status-own';
-        own.textContent='Esta es tu cuenta. No se puede borrar.';
+        own.innerHTML='<i class="fa-solid fa-xmark" aria-hidden="true"></i> Esta cuenta no se puede borrar';
         actions.append(own);
       }else{
         const remove=document.createElement('button');
@@ -1129,7 +1133,7 @@ async function loadCeoAccounts(append=false){
         };
         actions.append(remove);
       }
-      card.append(heading,details,actions);
+      card.append(heading,details,face,actions);
       list.append(card);
     }
     ceoNext=next;

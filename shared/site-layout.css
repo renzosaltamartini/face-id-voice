@@ -207,3 +207,34 @@
 #panel-ceo .account-facts dd { background: var(--account-hover); color: var(--account-ink); border-radius: 5px; }
 #panel-ceo .ceo-account-actions { padding: 8px 10px 14px 16px; }
 #panel-ceo .ceo-account-actions .account-status { background: var(--account-hover); color: var(--account-muted); border-radius: 5px; }
+
+#dashboard .panel-sidebar { background: #f1eee7; border-color: #ddd9d0; }
+#dashboard .panel-nav {
+  font-family: Poppins, Arial, sans-serif;
+  background: transparent; border: 0; border-radius: 0; padding: 0;
+}
+#dashboard .panel-nav :is(button,a) {
+  min-height: 34px; border-radius: 6px; font: 500 12px/1.25 Poppins, Arial, sans-serif;
+}
+#dashboard .panel-nav button:is(:hover,[aria-pressed="true"],[data-current]) {
+  background: #e6e1d6; color: #22211f;
+}
+#dashboard .panel-nav .organizer-options { border-color: #ddd9d0; }
+#dashboard .panel-nav .room-nav { background: #e7edf9; border-color: transparent; color: #1746ad; }
+#dashboard .panel-nav .room-nav:is(:hover,:focus-visible) { background: #dae5fa; }
+#dashboard .panel-nav .ceo-nav { background: #f6e5e6; color: #8a303b; }
+#dashboard .panel-nav .ceo-nav:is(:hover,:focus-visible,[aria-current="page"]) { background: #efd5d8; }
+@media (min-width: 860px) {
+  #dashboard .panel-nav .room-nav { justify-self: stretch; padding-inline: 14px; }
+}
+
+#panel-ceo .ceo-account-photo {
+  margin-left: 20px; padding: 8px 10px 4px 16px;
+  border-left: 1px solid var(--account-line);
+}
+#panel-ceo .ceo-account-photo h3 { margin: 0 0 5px; font-size: 12px; font-weight: 500; color: var(--account-muted); }
+#panel-ceo .ceo-account-photo .account-status { font-size: 12px; color: var(--account-muted); }
+#panel-ceo .ceo-account-photo a { color: #1746ad; }
+#panel-ceo .ceo-account-actions .account-status-own {
+  gap: 6px; background: #f8e2e5; color: #812630;
+}
