@@ -161,3 +161,49 @@
 @media (max-width: 580px) {
   .ceo-account-details { grid-template-columns: minmax(0,1fr); }
 }
+
+/* Match the Room document tree and its inline properties. */
+#dashboard #panel-ceo {
+  --account-paper: #faf8f3;
+  --account-hover: #eeebe3;
+  --account-line: #ddd9d0;
+  --account-ink: #22211f;
+  --account-muted: #625f57;
+  background: var(--account-paper);
+  border: 1px solid var(--account-line);
+  border-radius: 10px;
+  padding: clamp(14px, 4vw, 36px);
+  color: var(--account-ink);
+  font: 400 13px/1.5 Poppins, Arial, sans-serif;
+}
+#dashboard #panel-ceo .panel-section-header h2 {
+  font: 600 clamp(22px, 4vw, 30px)/1.2 Poppins, Arial, sans-serif;
+  letter-spacing: -.035em;
+}
+#panel-ceo .ceo-account-list { gap: 2px; }
+#dashboard #panel-ceo .ceo-overview { background: transparent; border: 0; border-radius: 6px; }
+#panel-ceo .ceo-overview summary {
+  min-height: 43px; padding: 5px 9px; gap: 9px;
+  border-radius: 6px; background: transparent;
+}
+#panel-ceo .ceo-overview summary:is(:hover,:focus-visible),
+#panel-ceo .ceo-overview[open] summary { background: var(--account-hover); }
+#panel-ceo .ceo-overview summary::after {
+  order: -1; margin: 0 3px 0 1px; transform: rotate(-45deg); border-color: var(--account-muted);
+}
+#panel-ceo .ceo-overview[open] summary::after { transform: rotate(45deg); }
+#panel-ceo .account-list-avatar {
+  display: inline-grid; width: 16px; height: 20px; background: transparent;
+  color: var(--account-muted); font-size: 14px;
+}
+#panel-ceo .account-list-identity { gap: 0; color: var(--account-muted); font-size: 11px; }
+#panel-ceo .account-list-identity strong { color: var(--account-ink); font-size: 13px; font-weight: 500; }
+#panel-ceo :is(.ceo-account-details,.ceo-account-actions) {
+  margin-left: 20px; border: 0; border-left: 1px solid var(--account-line);
+}
+#panel-ceo .ceo-account-details { grid-template-columns: minmax(0,1fr); gap: 14px; padding: 12px 10px 4px 16px; }
+#panel-ceo .ceo-account-details h3 { font-weight: 500; color: var(--account-muted); font-size: 12px; }
+#panel-ceo .account-facts > div { border: 0; grid-template-columns: minmax(84px,130px) minmax(0,1fr); }
+#panel-ceo .account-facts dd { background: var(--account-hover); color: var(--account-ink); border-radius: 5px; }
+#panel-ceo .ceo-account-actions { padding: 8px 10px 14px 16px; }
+#panel-ceo .ceo-account-actions .account-status { background: var(--account-hover); color: var(--account-muted); border-radius: 5px; }
