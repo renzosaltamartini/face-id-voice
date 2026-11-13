@@ -1089,11 +1089,13 @@ async function loadCeoAccounts(append=false){
         actions.append(photo);
       }else{
         const unavailable=document.createElement('span');
+        unavailable.className='account-status';
         unavailable.textContent='Sin foto facial guardada';
         actions.append(unavailable);
       }
       if(account.isOwnAccount||account.id===panelAccount?.id||account.email===panelAccount?.email){
         const own=document.createElement('span');
+        own.className='account-status account-status-own';
         own.textContent='Esta es tu cuenta. No se puede borrar.';
         actions.append(own);
       }else{
