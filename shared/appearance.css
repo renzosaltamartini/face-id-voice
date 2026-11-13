@@ -484,3 +484,116 @@
 #changePasswordDialog h3 { margin: 0 0 14px; }
 #changePasswordDialog .password-fields { grid-template-columns: 1fr; }
 #changePasswordError { color: #a51d33; font-size: 13px; }
+
+/* Renx site and account screens */
+:root {
+  --font-body: "DM Sans", Arial, sans-serif;
+  --font-heading: Manrope, Arial, sans-serif;
+  --renx-serif: var(--font-heading);
+  --renx-paper: #f2f6f3;
+  --renx-paper-deep: #e0ebe5;
+  --renx-line: #d4e2da;
+  --renx-ink: #132920;
+  --renx-muted: #4d655a;
+  --renx-blue: #14604b;
+  --renx-blue-hover: #0c4938;
+  --renx-blue-soft: #deefe6;
+  --app-primary: var(--renx-blue);
+  --app-subtle: #edf4ef;
+  --app-shadow: 0 10px 30px #153f2910;
+  --home-blue: var(--renx-blue);
+  --home-blue-dark: var(--renx-blue-hover);
+  --home-line: var(--renx-line);
+  font-family: var(--font-body);
+}
+:is(#home,#verify,#registration,#dashboard) :is(button,input,select) { font-family: var(--font-body); }
+:is(#home,#verify,#registration,#dashboard) :is(button,a,input,select,summary):focus-visible {
+  outline: 2px solid #22715a; outline-offset: 3px;
+}
+:is(#home,#verify,#registration,#dashboard) :is(.primary,.secondary,.back) {
+  border-radius: 999px;
+  transition: background .2s ease, color .2s ease, border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+:is(#home,#verify,#registration,#dashboard) :is(.primary,.secondary):not(:disabled):active { transform: scale(.97); }
+:is(#home,#verify,#registration,#dashboard) .primary:not(:disabled):hover { box-shadow: 0 5px 16px #145f482e; }
+
+#home .shell { max-width: 1320px; padding-inline: clamp(16px,4vw,54px); }
+#home .nav { height: 76px; border-bottom: 1px solid var(--renx-line); }
+#home .logo, #dashboard .logo { font: 800 23px/1 var(--font-heading); letter-spacing: -.065em; }
+#home .logo-mark, #dashboard .logo-mark { background: #17392e; color: #b8efd5; border-radius: 50%; }
+#home .home-main {
+  grid-template-columns: minmax(0,1fr) minmax(0,1.04fr); align-items: center;
+  gap: clamp(26px,5vw,72px); margin: 22px 0 0; padding: clamp(26px,6vw,88px);
+  min-height: 0; background: #e0eee5; border-radius: clamp(21px,4vw,40px);
+}
+#home .home-copy h1 {
+  color: var(--renx-ink); font: 800 clamp(41px,6.1vw,86px)/1.04 var(--font-heading);
+  letter-spacing: -.07em; margin-bottom: 20px; max-width: 12ch;
+}
+#home .home-copy .home-highlight { color: #17604a; background: transparent; padding: 0; display: inline; }
+#home .home-copy p { color: var(--renx-muted); font: 400 16px/1.6 var(--font-body); }
+#home .home-actions .primary, #home .home-nav-access { background: #174737; color: white; }
+#home .home-preview { margin: 0; min-width: 0; }
+#home .home-preview-window {
+  background: #fff; border: 1px solid #bdd4c6; border-radius: 20px; box-shadow: 0 20px 46px #224f3829;
+}
+#home .home-preview-bar, #home .home-preview-sidebar { background: #eff5f0; border-color: var(--renx-line); }
+#home .home-preview-body { grid-template-columns: minmax(96px,32%) minmax(0,1fr); }
+#home .preview-title { font-family: var(--font-heading); }
+#home .home-intro { border: 0; gap: 12px; margin: 14px 0 32px; }
+#home .home-intro article { border: 1px solid var(--renx-line); border-radius: 20px; background: #fff; padding: 20px; }
+#home .home-intro h2 { font: 700 17px/1.25 var(--font-heading); color: var(--renx-ink); }
+
+#dashboard .panel-sidebar { background: #e4efe8; border-bottom: 1px solid #c9ddd1; }
+#dashboard .panel-nav { background: #f6faf7; border: 1px solid #d0e1d7; border-radius: 999px; padding: 5px; }
+#dashboard .panel-nav :is(button,a) { border-radius: 999px; }
+#dashboard .panel-nav button:is([aria-pressed="true"],[data-current]) { background: #d9ece1; color: #174737; }
+#dashboard .organizer-options { background: #fff; border: 1px solid var(--renx-line); border-radius: 17px; padding: 6px; }
+#dashboard .organizer-options button:is(:hover,[aria-current="page"]) { background: #edf4ef; color: #174737; }
+#dashboard .panel-main { max-width: 1160px; padding-top: clamp(24px,5vw,58px); }
+#dashboard .panel-hero {
+  min-height: 0; padding: clamp(24px,5vw,55px); margin-bottom: 16px;
+  border: 0; border-radius: 28px; background: #193b30; color: #fff;
+}
+#dashboard .panel-hero h2 {
+  color: #fff; font: 700 clamp(34px,6.5vw,72px)/1.06 var(--font-heading); letter-spacing: -.065em;
+}
+#dashboard #panelName { color: #b8efd5; font-style: normal; }
+#dashboard .panel-hero #panelEmail { color: #c9dfd4; }
+#dashboard .panel-metric, #dashboard .panel-card {
+  background: #fff; border: 1px solid var(--renx-line); border-radius: 18px; box-shadow: none;
+}
+#dashboard .panel-metric strong { font-family: var(--font-heading); color: #173b2f; }
+#dashboard .panel-section-header h2 { font: 750 clamp(25px,4vw,42px)/1.13 var(--font-heading); letter-spacing: -.05em; }
+#dashboard .panel-nav .room-nav { --shortcut-color: #245ab3; --shortcut-glow: #3976db47; }
+#dashboard .panel-nav .ceo-nav { --shortcut-color: #a93148; --shortcut-glow: #c4496247; }
+
+:is(#verify,#registration) {
+  background: radial-gradient(ellipse at 50% 0%,#d9ede2 0,transparent 580px), var(--renx-paper);
+}
+#verify .verify-shell { max-width: 510px; }
+#registration .registration-shell { max-width: 750px; }
+#verify .verify-header, #registration .registration-intro { margin: clamp(22px,5vw,42px) 0 22px; }
+#verify .verify-header h1, #registration .registration-intro h1 {
+  font: 800 clamp(31px,6vw,52px)/1.07 var(--font-heading); letter-spacing: -.065em;
+}
+#verify :is(.device-choice,.qr-fallback,.scanner-card,#phoneApproval), #registration .nameForm {
+  border-radius: 24px; border: 1px solid var(--renx-line); padding: clamp(17px,4vw,30px);
+  box-shadow: var(--app-shadow);
+}
+#verify .back { background: #fff; border: 1px solid var(--renx-line); padding: 8px 14px; }
+#verify .camera { border-radius: 25px; border: 1px solid #618477; box-shadow: var(--app-shadow); }
+#verify :is(.verification-progress,.phase-top) { border-color: var(--renx-line); border-radius: 18px; }
+#verify .progress .bar { background: var(--renx-blue); }
+#registration .nameForm :is(input,select) { background: #f5f9f6; border-radius: 11px; min-height: 44px; }
+#registration .profile-step legend { font: 700 19px/1.2 var(--font-heading); }
+#registration .registration-check { border-radius: 50%; background: #d7eee1; color: #175c46; }
+@media (max-width: 880px) {
+  #home .home-main { grid-template-columns: 1fr; }
+  #home .home-copy h1 { max-width: 14ch; }
+}
+@media (max-width: 560px) {
+  #home .home-intro { grid-template-columns: 1fr; }
+  #dashboard .panel-nav { border-radius: 18px; }
+  #dashboard .panel-hero { border-radius: 22px; }
+}
