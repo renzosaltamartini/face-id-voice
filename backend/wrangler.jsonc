@@ -5,7 +5,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "keep_vars": true,
   "vars": {
-    "NOVA_WEB_ORIGIN": "https://nova-face-id.vercel.app"
+    "NOVA_WEB_ORIGIN": "https://renxportal.vercel.app"
   },
   "d1_databases": [
     {
